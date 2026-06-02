@@ -1,20 +1,120 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import React from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { Text, View, StyleSheet } from 'react-native';
+import { useAppData } from './src/hooks/useAppData';
 
-export default function App() {
+import MapScreen from './src/screens/MapScreen';
+import ScanScreen from './src/screens/ScanScreen';
+import WalletScreen from './src/screens/WalletScreen';
+import ProfileScreen from './src/screens/ProfileScreen';
+
+const Tab = createBottomTabNavigator();
+
+function TabIcon({ emoji, focused }) {
   return (
-    <View style={styles.container}>
-      <Text>Open up App.js to start working on your app!</Text>
-      <StatusBar style="auto" />
+    <View style={[styles.iconBox, focused && styles.iconBoxFocused]}>
+      <Text style={styles.iconText}>{emoji}</Text>
     </View>
   );
 }
 
+export default function App() {
+  const appData = useAppData();
+
+  if (appData.loading) {
+    return (
+      <View style={styles.loading}>
+        <Text style={styles.loadingText}>Loading...</Text>
+      </View>
+    );
+  }
+
+  return (
+    <NavigationContainer>
+      <Tab.Navigator
+        screenOptions={{
+          headerShown: false,
+          tabBarStyle: styles.tabBar,
+          tabBarShowLabel: true,
+          tabBarLabelStyle: styles.tabLabel,
+          tabBarActiveTintColor: '#3498db',
+          tabBarInactiveTintColor: '#888',
+        }}
+      >
+        <Tab.Screen
+          name="Map"
+          options={{
+            tabBarIcon: ({ focused }) => <TabIcon emoji="🗺️" focused={focused} />,
+          }}
+        >
+          {() => <MapScreen appData={appData} />}
+        </Tab.Screen>
+        <Tab.Screen
+          name="Scan"
+          options={{
+            tabBarIcon: ({ focused }) => <TabIcon emoji="📷" focused={focused} />,
+          }}
+        >
+          {() => <ScanScreen appData={appData} />}
+        </Tab.Screen>
+        <Tab.Screen
+          name="Wallet"
+          options={{
+            tabBarIcon: ({ focused }) => <TabIcon emoji="🏆" focused={focused} />,
+            tabBarBadge: appData.getStampCount() > 0 ? appData.getStampCount() : undefined,
+          }}
+        >
+          {() => <WalletScreen appData={appData} />}
+        </Tab.Screen>
+        <Tab.Screen
+          name="Profile"
+          options={{
+            tabBarIcon: ({ focused }) => <TabIcon emoji="👤" focused={focused} />,
+          }}
+        >
+          {() => <ProfileScreen appData={appData} />}
+        </Tab.Screen>
+      </Tab.Navigator>
+    </NavigationContainer>
+  );
+}
+
 const styles = StyleSheet.create({
-  container: {
+  loading: {
     flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
     justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+  },
+  loadingText: {
+    fontSize: 18,
+    color: '#888',
+  },
+  tabBar: {
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+    paddingTop: 6,
+    paddingBottom: 8,
+    height: 70,
+  },
+  tabLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  iconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  iconBoxFocused: {
+    backgroundColor: '#e3f2fd',
+  },
+  iconText: {
+    fontSize: 20,
   },
 });
