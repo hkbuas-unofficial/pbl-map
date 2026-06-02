@@ -1,9 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
+  TouchableOpacity,
+  Modal,
+  TextInput,
 } from 'react-native';
 import { REDEMPTION_THRESHOLD, REDEMPTION_COST, MAX_ATTEMPTS_PER_BOOTH } from '../hooks/useAppData';
 
@@ -11,11 +14,30 @@ export default function ProfileScreen({ appData }) {
   const { booths, stamps, attempts, redemptions, getStampCount } = appData;
   const stampCount = getStampCount();
 
+  const [adminModalVisible, setAdminModalVisible] = useState(false);
+  const [selectedBoothForQR, setSelectedBoothForQR] = useState(null);
+
+  const handleOpenAdmin = () => {
+    setAdminModalVisible(true);
+    setSelectedBoothForQR(null);
+  };
+
+  const handleSelectBooth = (booth) => {
+    setSelectedBoothForQR(booth);
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Profile</Text>
-        <Text style={styles.subtitle}>Event participation stats</Text>
+        <View style={styles.headerRow}>
+          <View>
+            <Text style={styles.title}>Profile</Text>
+            <Text style={styles.subtitle}>Event participation stats</Text>
+          </View>
+          <TouchableOpacity style={styles.adminBtn} onPress={handleOpenAdmin}>
+            <Text style={styles.adminBtnText}>👤</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
@@ -104,6 +126,70 @@ export default function ProfileScreen({ appData }) {
           );
         })}
       </ScrollView>
+
+      {/* Admin Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={adminModalVisible}
+        onRequestClose={() => setAdminModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modal}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>👤 Admin Panel</Text>
+              <TouchableOpacity onPress={() => setAdminModalVisible(false)}>
+                <Text style={styles.modalClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            {!selectedBoothForQR ? (
+              <>
+                <Text style={styles.modalSub}>Select a booth to get its QR code data</Text>
+                <ScrollView style={styles.boothList}>
+                  {booths.map((booth) => (
+                    <TouchableOpacity
+                      key={booth.booth_id}
+                      style={styles.boothSelectRow}
+                      onPress={() => handleSelectBooth(booth)}
+                    >
+                      <Text style={styles.boothSelectId}>{booth.booth_id}</Text>
+                      <Text style={styles.boothSelectName}>{booth.booth_name}</Text>
+                      <Text style={styles.boothSelectArrow}>→</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </>
+            ) : (
+              <>
+                <Text style={styles.qrBoothName}>{selectedBoothForQR.booth_name}</Text>
+                <Text style={styles.qrBoothId}>Booth {selectedBoothForQR.booth_id}</Text>
+                
+                <View style={styles.qrDataBox}>
+                  <Text style={styles.qrDataLabel}>QR Code Content:</Text>
+                  <TextInput
+                    style={styles.qrDataInput}
+                    value={selectedBoothForQR.booth_id}
+                    editable={false}
+                    selectTextOnFocus
+                    multiline
+                  />
+                  <Text style={styles.qrHint}>
+                    Copy this text and paste it into any online QR code generator (e.g., qr-code-generator.com)
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  style={styles.backBtn}
+                  onPress={() => setSelectedBoothForQR(null)}
+                >
+                  <Text style={styles.backBtnText}>← Back to Booth List</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -121,6 +207,11 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
   },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
@@ -130,6 +221,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#888',
     marginTop: 2,
+  },
+  adminBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#e3f2fd',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  adminBtnText: {
+    fontSize: 22,
   },
   scrollView: {
     flex: 1,
@@ -311,5 +413,122 @@ const styles = StyleSheet.create({
   boothRowAttempts: {
     color: '#888',
     fontSize: 12,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modal: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  modalClose: {
+    fontSize: 20,
+    color: '#888',
+    padding: 4,
+  },
+  modalSub: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 12,
+  },
+  boothList: {
+    maxHeight: 300,
+  },
+  boothSelectRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  boothSelectId: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#3498db',
+    width: 50,
+  },
+  boothSelectName: {
+    flex: 1,
+    fontSize: 14,
+    color: '#333',
+  },
+  boothSelectArrow: {
+    fontSize: 16,
+    color: '#888',
+  },
+  qrBoothName: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#333',
+    textAlign: 'center',
+  },
+  qrBoothId: {
+    fontSize: 14,
+    color: '#888',
+    textAlign: 'center',
+    marginBottom: 20,
+    marginTop: 4,
+  },
+  qrDataBox: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+  },
+  qrDataLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#555',
+    marginBottom: 8,
+  },
+  qrDataInput: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    textAlign: 'center',
+    fontFamily: 'monospace',
+  },
+  qrHint: {
+    fontSize: 12,
+    color: '#888',
+    marginTop: 10,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  backBtn: {
+    backgroundColor: '#ecf0f1',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  backBtnText: {
+    color: '#555',
+    fontSize: 15,
+    fontWeight: '600',
   },
 });
