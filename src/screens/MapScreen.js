@@ -15,14 +15,12 @@ import BoothDetailModal from '../components/BoothDetailModal';
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
 const HEADER_H = 85;
-const LEGEND_H = 45;
 const MAP_AREA_W = SCREEN_W;
-const MAP_AREA_H = SCREEN_H - HEADER_H - LEGEND_H;
+const MAP_AREA_H = SCREEN_H - HEADER_H;
 
-// Known map image dimensions - adjust if your map is different
-// Using a reasonable default; on web we'll detect actual size
-const MAP_IMG_W = 1200;
-const MAP_IMG_H = 1600;
+// Actual map image dimensions
+const MAP_IMG_W = 3800;
+const MAP_IMG_H = 3109;
 
 export default function MapScreen({ appData, navigation }) {
   const { booths, hasStamp, isLockedOut, getRemainingAttempts, getStampCount } = appData;
@@ -243,21 +241,7 @@ export default function MapScreen({ appData, navigation }) {
         </TouchableOpacity>
       </View>
 
-      {/* Legend */}
-      <View style={styles.legend}>
-        <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: '#e74c3c' }]} />
-          <Text style={styles.legendText}>Not Visited</Text>
-        </View>
-        <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: '#27ae60' }]} />
-          <Text style={styles.legendText}>Stamped</Text>
-        </View>
-        <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: '#888' }]} />
-          <Text style={styles.legendText}>Locked</Text>
-        </View>
-      </View>
+
 
       <BoothDetailModal
         visible={detailVisible}
@@ -361,28 +345,5 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
   },
-  legend: {
-    height: 45,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 20,
-    backgroundColor: '#000',
-    borderTopWidth: 1,
-    borderTopColor: '#222',
-  },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  legendDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  legendText: {
-    fontSize: 12,
-    color: '#aaa',
-  },
+
 });
