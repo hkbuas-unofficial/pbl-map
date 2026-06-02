@@ -59,7 +59,7 @@ export default function App() {
           {() => <ScanScreen appData={appData} />}
         </Tab.Screen>
         <Tab.Screen
-          name="Wallet"
+          name="My Stamps"
           options={{
             tabBarIcon: ({ focused }) => <TabIcon emoji="🏆" focused={focused} />,
             tabBarBadge: appData.getStampCount() > 0 ? appData.getStampCount() : undefined,

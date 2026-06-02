@@ -141,5 +141,7 @@ export function useAppData() {
     getRandomQuestion,
     resetAll,
     loadData,
+    saveStamps,
+    saveAttempts,
   };
 }

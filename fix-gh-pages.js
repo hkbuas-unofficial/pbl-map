@@ -56,6 +56,12 @@ function fixJsPaths(dir) {
       // Also fix any absolute paths
       content = content.replace(/"\/assets\//g, '"./assets/');
       content = content.replace(/'\/assets\//g, "'./assets/");
+      // Fix dynamic import chunk paths for GitHub Pages subdirectory
+      content = content.replace(/"\/_expo\//g, '"./_expo/');
+      content = content.replace(/'\/_expo\//g, "'./_expo/");
+      // Fix any remaining absolute _expo paths
+      content = content.replace(/https:\/\/[^"']*\/_expo\//g, './_expo/');
+      content = content.replace(/http:\/\/[^"']*\/_expo\//g, './_expo/');
       if (content !== original) {
         fs.writeFileSync(fullPath, content);
         console.log(`Fixed asset paths in ${path.relative(distDir, fullPath)}`);

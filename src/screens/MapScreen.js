@@ -21,6 +21,9 @@ const MAP_AREA_H = SCREEN_H - HEADER_H;
 const MAP_IMG_W = 3800;
 const MAP_IMG_H = 3109;
 
+// Extra drag border (pixels) around the map - generous for all directions
+const DRAG_BORDER = 600;
+
 export default function MapScreen({ appData, navigation }) {
   const { booths, hasStamp, isLockedOut, getRemainingAttempts, getStampCount } = appData;
 
@@ -60,27 +63,20 @@ export default function MapScreen({ appData, navigation }) {
     scaleRef.current = scale;
   }, [scale]);
 
-  // Apply constrained transform
+  // Apply constrained transform with generous drag border
   const applyTransform = useCallback((newScale, newTranslateX, newTranslateY) => {
     const scaledW = MAP_IMG_W * newScale;
     const scaledH = MAP_IMG_H * newScale;
 
-    // Allow viewing all edges of the map
-    // When zoomed out (scale <= baseScale), center it
-    // When zoomed in, allow dragging to edges
-    const minX = Math.min(0, MAP_AREA_W - scaledW);
-    const maxX = Math.max(0, MAP_AREA_W - scaledW);
-    const minY = Math.min(0, MAP_AREA_H - scaledH);
-    const maxY = Math.max(0, MAP_AREA_H - scaledH);
+    // Always allow dragging past edges by DRAG_BORDER in ALL directions
+    // This works whether map is smaller or larger than container
+    const minX = MAP_AREA_W - scaledW - DRAG_BORDER;
+    const maxX = DRAG_BORDER;
+    const minY = MAP_AREA_H - scaledH - DRAG_BORDER;
+    const maxY = DRAG_BORDER;
 
-    // If map is smaller than container, center it
-    // If map is larger, allow dragging within bounds
-    const constrainedX = scaledW <= MAP_AREA_W 
-      ? (MAP_AREA_W - scaledW) / 2 
-      : Math.max(minX, Math.min(maxX, newTranslateX));
-    const constrainedY = scaledH <= MAP_AREA_H 
-      ? (MAP_AREA_H - scaledH) / 2 
-      : Math.max(minY, Math.min(maxY, newTranslateY));
+    const constrainedX = Math.max(minX, Math.min(maxX, newTranslateX));
+    const constrainedY = Math.max(minY, Math.min(maxY, newTranslateY));
 
     setScale(newScale);
     setTranslateX(constrainedX);
@@ -91,6 +87,14 @@ export default function MapScreen({ appData, navigation }) {
 
     return { x: constrainedX, y: constrainedY };
   }, [scaleAnim, translateXAnim, translateYAnim]);
+
+  // Initialize with centered position
+  useEffect(() => {
+    const initialScale = getInitialScale(MAP_IMG_W, MAP_IMG_H);
+    const centerX = (MAP_AREA_W - MAP_IMG_W * initialScale) / 2;
+    const centerY = (MAP_AREA_H - MAP_IMG_H * initialScale) / 2;
+    applyTransform(initialScale, centerX, centerY);
+  }, [getInitialScale, applyTransform]);
 
   // Web mouse wheel zoom
   useEffect(() => {
@@ -154,9 +158,11 @@ export default function MapScreen({ appData, navigation }) {
     };
   }, [baseScale, applyTransform]);
 
-  // Reset zoom to fit
+  // Reset zoom to fit (centered)
   const handleResetZoom = () => {
-    applyTransform(baseScale, (MAP_AREA_W - MAP_IMG_W * baseScale) / 2, (MAP_AREA_H - MAP_IMG_H * baseScale) / 2);
+    const centerX = (MAP_AREA_W - MAP_IMG_W * baseScale) / 2;
+    const centerY = (MAP_AREA_H - MAP_IMG_H * baseScale) / 2;
+    applyTransform(baseScale, centerX, centerY);
   };
 
   const handlePinPress = (booth) => {
@@ -173,6 +179,9 @@ export default function MapScreen({ appData, navigation }) {
 
   const stampCount = getStampCount();
   const totalBooths = booths.length;
+
+  // Calculate inverse scale for pins so they stay roughly constant visual size
+  const pinScale = Math.max(0.35, Math.min(1.5, baseScale / scale));
 
   return (
     <View style={styles.container}>
@@ -228,6 +237,7 @@ export default function MapScreen({ appData, navigation }) {
                   booth={booth}
                   hasStamp={hasStamp(booth.booth_id)}
                   onPress={() => handlePinPress(booth)}
+                  scale={pinScale}
                 />
               </View>
             ))}
@@ -268,21 +278,21 @@ export default function MapScreen({ appData, navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: '#fff',
   },
   header: {
     height: 72,
     paddingTop: 16,
     paddingHorizontal: 16,
     paddingBottom: 8,
-    backgroundColor: '#000',
+    backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: '#222',
+    borderBottomColor: '#e0e0e0',
   },
   title: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#fff',
+    color: '#333',
   },
   subtitle: {
     fontSize: 12,
@@ -291,7 +301,7 @@ const styles = StyleSheet.create({
   },
   mapWrapper: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: '#f5f5f5',
     overflow: 'hidden',
     position: 'relative',
   },
@@ -307,19 +317,24 @@ const styles = StyleSheet.create({
   },
   pinWrapper: {
     position: 'absolute',
-    transform: [{ translateX: -20 }, { translateY: -35 }],
+    transform: [{ translateX: -50 }, { translateY: -50 }],
   },
   statsOverlay: {
     position: 'absolute',
     bottom: 16,
     right: 72,
-    backgroundColor: 'rgba(20,20,20,0.85)',
+    backgroundColor: 'rgba(255,255,255,0.95)',
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(0,0,0,0.1)',
     gap: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   statRow: {
     flexDirection: 'row',
@@ -332,7 +347,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   statText: {
-    color: '#fff',
+    color: '#333',
     fontSize: 12,
     fontWeight: '600',
   },
@@ -343,14 +358,19 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(255,255,255,0.9)',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.25)',
+    borderColor: 'rgba(0,0,0,0.15)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   zoomBtnText: {
-    color: '#fff',
+    color: '#333',
     fontSize: 18,
     fontWeight: 'bold',
   },

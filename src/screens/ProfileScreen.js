@@ -7,24 +7,324 @@ import {
   TouchableOpacity,
   Modal,
   TextInput,
+  Alert,
 } from 'react-native';
 import { REDEMPTION_THRESHOLD, REDEMPTION_COST, MAX_ATTEMPTS_PER_BOOTH } from '../hooks/useAppData';
 
+const ADMIN_PASSWORD = 'pbl5**';
+
 export default function ProfileScreen({ appData }) {
-  const { booths, stamps, attempts, redemptions, getStampCount } = appData;
+  const { booths, stamps, attempts, redemptions, getStampCount, addStamp, resetAll, saveAttempts } = appData;
   const stampCount = getStampCount();
 
   const [adminModalVisible, setAdminModalVisible] = useState(false);
-  const [selectedBoothForQR, setSelectedBoothForQR] = useState(null);
+  const [passwordInput, setPasswordInput] = useState('');
+  const [passwordError, setPasswordError] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [adminTab, setAdminTab] = useState('stamps'); // 'stamps' | 'reset' | 'quiz'
+  const [selectedBoothForQuiz, setSelectedBoothForQuiz] = useState(null);
+  const [selectedQuestion, setSelectedQuestion] = useState(null);
+  const [selectedAnswer, setSelectedAnswer] = useState(null);
+  const [stampNumberInput, setStampNumberInput] = useState(String(stampCount));
 
   const handleOpenAdmin = () => {
     setAdminModalVisible(true);
-    setSelectedBoothForQR(null);
+    setPasswordInput('');
+    setPasswordError(false);
+    setIsAuthenticated(false);
+    setAdminTab('stamps');
+    setSelectedBoothForQuiz(null);
+    setSelectedQuestion(null);
+    setSelectedAnswer(null);
+    setStampNumberInput(String(stampCount));
   };
 
-  const handleSelectBooth = (booth) => {
-    setSelectedBoothForQR(booth);
+  const handlePasswordSubmit = () => {
+    if (passwordInput === ADMIN_PASSWORD) {
+      setIsAuthenticated(true);
+      setPasswordError(false);
+    } else {
+      setPasswordError(true);
+      setPasswordInput('');
+    }
   };
+
+  const handleCloseAdmin = () => {
+    setAdminModalVisible(false);
+    setIsAuthenticated(false);
+    setPasswordInput('');
+    setPasswordError(false);
+  };
+
+  const handleSetStampCount = async () => {
+    const count = parseInt(stampNumberInput, 10);
+    if (isNaN(count) || count < 0 || count > booths.length) {
+      Alert.alert('Invalid', `Enter a number between 0 and ${booths.length}`);
+      return;
+    }
+    // Set stamps for first N booths
+    const newStamps = {};
+    for (let i = 0; i < count; i++) {
+      newStamps[booths[i].booth_id] = true;
+    }
+    await appData.saveStamps(newStamps);
+    Alert.alert('Success', `Stamp count set to ${count}`);
+  };
+
+  const handleResetAll = async () => {
+    Alert.alert(
+      'Confirm Reset',
+      'This will clear ALL stamps, attempts, and redemptions. Are you sure?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset Everything',
+          style: 'destructive',
+          onPress: async () => {
+            await resetAll();
+            setStampNumberInput('0');
+            Alert.alert('Reset Complete', 'All progress has been cleared.');
+          },
+        },
+      ]
+    );
+  };
+
+  const handleSelectBoothForQuiz = (booth) => {
+    setSelectedBoothForQuiz(booth);
+    setSelectedQuestion(null);
+    setSelectedAnswer(null);
+  };
+
+  const handleSelectQuestion = (question, index) => {
+    setSelectedQuestion({ ...question, _index: index });
+    setSelectedAnswer(null);
+  };
+
+  const handleAnswerQuestion = async () => {
+    if (!selectedBoothForQuiz || !selectedAnswer) return;
+    const isCorrect = selectedAnswer === selectedQuestion.answer;
+    if (isCorrect) {
+      await addStamp(selectedBoothForQuiz.booth_id);
+      Alert.alert('Correct!', `Stamp awarded for ${selectedBoothForQuiz.booth_name}`);
+    } else {
+      // Wrong answer - increment attempts
+      const newAttempts = { ...attempts, [selectedBoothForQuiz.booth_id]: (attempts[selectedBoothForQuiz.booth_id] || 0) + 1 };
+      await saveAttempts(newAttempts);
+      Alert.alert('Wrong Answer', 'Attempt recorded. No stamp awarded.');
+    }
+    setSelectedQuestion(null);
+    setSelectedAnswer(null);
+  };
+
+  const renderPasswordScreen = () => (
+    <View style={styles.passwordScreen}>
+      <Text style={styles.passwordTitle}>🔒 Admin Access</Text>
+      <Text style={styles.passwordSub}>Enter password to continue</Text>
+      <TextInput
+        style={[styles.passwordInput, passwordError && styles.passwordInputError]}
+        value={passwordInput}
+        onChangeText={setPasswordInput}
+        placeholder="Password"
+        placeholderTextColor="#999"
+        secureTextEntry
+        onSubmitEditing={handlePasswordSubmit}
+        autoFocus
+      />
+      {passwordError && (
+        <Text style={styles.passwordError}>Incorrect password</Text>
+      )}
+      <TouchableOpacity style={styles.passwordBtn} onPress={handlePasswordSubmit}>
+        <Text style={styles.passwordBtnText}>Unlock</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  const renderAdminContent = () => (
+    <View style={styles.adminContent}>
+      {/* Tab bar */}
+      <View style={styles.tabBar}>
+        <TouchableOpacity
+          style={[styles.tab, adminTab === 'stamps' && styles.tabActive]}
+          onPress={() => setAdminTab('stamps')}
+        >
+          <Text style={[styles.tabText, adminTab === 'stamps' && styles.tabTextActive]}>
+            Set Stamps
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, adminTab === 'quiz' && styles.tabActive]}
+          onPress={() => { setAdminTab('quiz'); setSelectedBoothForQuiz(null); setSelectedQuestion(null); }}
+        >
+          <Text style={[styles.tabText, adminTab === 'quiz' && styles.tabTextActive]}>
+            Answer Quiz
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, adminTab === 'reset' && styles.tabActive]}
+          onPress={() => setAdminTab('reset')}
+        >
+          <Text style={[styles.tabText, adminTab === 'reset' && styles.tabTextActive]}>
+            Reset All
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Tab content */}
+      <ScrollView style={styles.tabContent}>
+        {adminTab === 'stamps' && (
+          <View style={styles.tabPanel}>
+            <Text style={styles.panelTitle}>Set Stamp Count</Text>
+            <Text style={styles.panelDesc}>
+              Manually set how many booths are stamped (0-{booths.length}).
+              This will stamp the first N booths in order.
+            </Text>
+            <View style={styles.inputRow}>
+              <TextInput
+                style={styles.numberInput}
+                value={stampNumberInput}
+                onChangeText={setStampNumberInput}
+                keyboardType="number-pad"
+                maxLength={2}
+              />
+              <Text style={styles.inputLabel}> / {booths.length} booths</Text>
+            </View>
+            <TouchableOpacity style={styles.actionBtn} onPress={handleSetStampCount}>
+              <Text style={styles.actionBtnText}>Apply Stamp Count</Text>
+            </TouchableOpacity>
+
+            <View style={styles.divider} />
+
+            <Text style={styles.panelTitle}>Current Stamps</Text>
+            {booths.map(booth => {
+              const stamped = !!stamps[booth.booth_id];
+              return (
+                <View key={booth.booth_id} style={styles.stampRow}>
+                  <View style={[styles.stampDot, stamped && styles.stampDotGreen]} />
+                  <Text style={styles.stampName}>{booth.booth_id} - {booth.booth_name}</Text>
+                  <Text style={[styles.stampStatus, stamped && styles.stampStatusGreen]}>
+                    {stamped ? '✓ Stamped' : 'Not stamped'}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+        )}
+
+        {adminTab === 'quiz' && (
+          <View style={styles.tabPanel}>
+            {!selectedBoothForQuiz ? (
+              <>
+                <Text style={styles.panelTitle}>Select a Booth</Text>
+                <Text style={styles.panelDesc}>Choose a booth to answer its quiz questions.</Text>
+                {booths.map(booth => {
+                  const stamped = !!stamps[booth.booth_id];
+                  const locked = (attempts[booth.booth_id] || 0) >= MAX_ATTEMPTS_PER_BOOTH && !stamped;
+                  return (
+                    <TouchableOpacity
+                      key={booth.booth_id}
+                      style={styles.boothQuizRow}
+                      onPress={() => handleSelectBoothForQuiz(booth)}
+                    >
+                      <View style={styles.boothQuizLeft}>
+                        <Text style={styles.boothQuizId}>{booth.booth_id}</Text>
+                        <Text style={styles.boothQuizName}>{booth.booth_name}</Text>
+                      </View>
+                      <View style={styles.boothQuizRight}>
+                        {stamped && <Text style={styles.badgeGreen}>Stamped</Text>}
+                        {locked && <Text style={styles.badgeRed}>Locked</Text>}
+                        {!stamped && !locked && (
+                          <Text style={styles.attemptsText}>
+                            {MAX_ATTEMPTS_PER_BOOTH - (attempts[booth.booth_id] || 0)} left
+                          </Text>
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </>
+            ) : !selectedQuestion ? (
+              <>
+                <TouchableOpacity onPress={() => setSelectedBoothForQuiz(null)}>
+                  <Text style={styles.backLink}>← Back to Booths</Text>
+                </TouchableOpacity>
+                <Text style={styles.panelTitle}>{selectedBoothForQuiz.booth_name}</Text>
+                <Text style={styles.panelDesc}>Select a question to answer:</Text>
+                {selectedBoothForQuiz.questions.map((q, idx) => (
+                  <TouchableOpacity
+                    key={idx}
+                    style={styles.questionRow}
+                    onPress={() => handleSelectQuestion(q, idx)}
+                  >
+                    <Text style={styles.questionNum}>Q{idx + 1}</Text>
+                    <Text style={styles.questionPreview} numberOfLines={2}>{q.question}</Text>
+                  </TouchableOpacity>
+                ))}
+              </>
+            ) : (
+              <>
+                <TouchableOpacity onPress={() => setSelectedQuestion(null)}>
+                  <Text style={styles.backLink}>← Back to Questions</Text>
+                </TouchableOpacity>
+                <Text style={styles.panelTitle}>Question</Text>
+                <View style={styles.questionCard}>
+                  <Text style={styles.questionText}>{selectedQuestion.question}</Text>
+                </View>
+                <Text style={styles.panelTitle}>Select Answer</Text>
+                {Object.entries(selectedQuestion.options).map(([key, value]) => {
+                  const isSelected = selectedAnswer === key;
+                  return (
+                    <TouchableOpacity
+                      key={key}
+                      style={[styles.answerOption, isSelected && styles.answerOptionSelected]}
+                      onPress={() => setSelectedAnswer(key)}
+                    >
+                      <View style={[styles.answerLetter, isSelected && styles.answerLetterSelected]}>
+                        <Text style={styles.answerLetterText}>{key.toUpperCase()}</Text>
+                      </View>
+                      <Text style={[styles.answerText, isSelected && styles.answerTextSelected]}>
+                        {value}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+                <TouchableOpacity
+                  style={[styles.actionBtn, !selectedAnswer && styles.actionBtnDisabled]}
+                  onPress={handleAnswerQuestion}
+                  disabled={!selectedAnswer}
+                >
+                  <Text style={styles.actionBtnText}>Submit Answer</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        )}
+
+        {adminTab === 'reset' && (
+          <View style={styles.tabPanel}>
+            <Text style={styles.panelTitle}>⚠️ Reset All Progress</Text>
+            <Text style={styles.panelDesc}>
+              This will permanently delete all stamps, quiz attempts, and redemption history.
+              This action cannot be undone.
+            </Text>
+            <View style={styles.resetStats}>
+              <View style={styles.resetStat}>
+                <Text style={styles.resetStatNum}>{stampCount}</Text>
+                <Text style={styles.resetStatLabel}>Stamps</Text>
+              </View>
+              <View style={styles.resetStat}>
+                <Text style={styles.resetStatNum}>{redemptions}</Text>
+                <Text style={styles.resetStatLabel}>Redemptions</Text>
+              </View>
+            </View>
+            <TouchableOpacity style={styles.resetBtn} onPress={handleResetAll}>
+              <Text style={styles.resetBtnText}>🗑 Reset Everything</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </ScrollView>
+    </View>
+  );
 
   return (
     <View style={styles.container}>
@@ -132,61 +432,18 @@ export default function ProfileScreen({ appData }) {
         animationType="slide"
         transparent={true}
         visible={adminModalVisible}
-        onRequestClose={() => setAdminModalVisible(false)}
+        onRequestClose={handleCloseAdmin}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modal}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>👤 Admin Panel</Text>
-              <TouchableOpacity onPress={() => setAdminModalVisible(false)}>
+              <TouchableOpacity onPress={handleCloseAdmin}>
                 <Text style={styles.modalClose}>✕</Text>
               </TouchableOpacity>
             </View>
 
-            {!selectedBoothForQR ? (
-              <>
-                <Text style={styles.modalSub}>Select a booth to get its QR code data</Text>
-                <ScrollView style={styles.boothList}>
-                  {booths.map((booth) => (
-                    <TouchableOpacity
-                      key={booth.booth_id}
-                      style={styles.boothSelectRow}
-                      onPress={() => handleSelectBooth(booth)}
-                    >
-                      <Text style={styles.boothSelectId}>{booth.booth_id}</Text>
-                      <Text style={styles.boothSelectName}>{booth.booth_name}</Text>
-                      <Text style={styles.boothSelectArrow}>→</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </>
-            ) : (
-              <>
-                <Text style={styles.qrBoothName}>{selectedBoothForQR.booth_name}</Text>
-                <Text style={styles.qrBoothId}>Booth {selectedBoothForQR.booth_id}</Text>
-                
-                <View style={styles.qrDataBox}>
-                  <Text style={styles.qrDataLabel}>QR Code Content:</Text>
-                  <TextInput
-                    style={styles.qrDataInput}
-                    value={selectedBoothForQR.booth_id}
-                    editable={false}
-                    selectTextOnFocus
-                    multiline
-                  />
-                  <Text style={styles.qrHint}>
-                    Copy this text and paste it into any online QR code generator (e.g., qr-code-generator.com)
-                  </Text>
-                </View>
-
-                <TouchableOpacity
-                  style={styles.backBtn}
-                  onPress={() => setSelectedBoothForQR(null)}
-                >
-                  <Text style={styles.backBtnText}>← Back to Booth List</Text>
-                </TouchableOpacity>
-              </>
-            )}
+            {!isAuthenticated ? renderPasswordScreen() : renderAdminContent()}
           </View>
         </View>
       </Modal>
@@ -426,8 +683,8 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 24,
     width: '100%',
-    maxWidth: 400,
-    maxHeight: '80%',
+    maxWidth: 420,
+    maxHeight: '85%',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -445,90 +702,325 @@ const styles = StyleSheet.create({
     color: '#888',
     padding: 4,
   },
-  modalSub: {
+  // Password screen
+  passwordScreen: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  passwordTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8,
+  },
+  passwordSub: {
     fontSize: 14,
-    color: '#666',
+    color: '#888',
+    marginBottom: 24,
+  },
+  passwordInput: {
+    width: '100%',
+    height: 50,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    color: '#333',
+    backgroundColor: '#f8f9fa',
+    marginBottom: 8,
+  },
+  passwordInputError: {
+    borderColor: '#e74c3c',
+    backgroundColor: '#fff5f5',
+  },
+  passwordError: {
+    color: '#e74c3c',
+    fontSize: 13,
     marginBottom: 12,
   },
-  boothList: {
-    maxHeight: 300,
+  passwordBtn: {
+    width: '100%',
+    backgroundColor: '#3498db',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
   },
-  boothSelectRow: {
+  passwordBtnText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  // Admin tabs
+  adminContent: {
+    flex: 1,
+  },
+  tabBar: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+    marginBottom: 12,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  tabActive: {
+    borderBottomWidth: 2,
+    borderBottomColor: '#3498db',
+  },
+  tabText: {
+    fontSize: 13,
+    color: '#888',
+    fontWeight: '600',
+  },
+  tabTextActive: {
+    color: '#3498db',
+  },
+  tabContent: {
+    maxHeight: 400,
+  },
+  tabPanel: {
+    paddingBottom: 16,
+  },
+  panelTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8,
+  },
+  panelDesc: {
+    fontSize: 13,
+    color: '#888',
+    marginBottom: 16,
+    lineHeight: 18,
+  },
+  inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: 16,
+  },
+  numberInput: {
+    width: 70,
+    height: 48,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 10,
+    fontSize: 20,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    color: '#333',
+    backgroundColor: '#f8f9fa',
+  },
+  inputLabel: {
+    fontSize: 16,
+    color: '#888',
+    marginLeft: 10,
+  },
+  actionBtn: {
+    backgroundColor: '#3498db',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  actionBtnDisabled: {
+    backgroundColor: '#ccc',
+  },
+  actionBtnText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: 'bold',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#eee',
+    marginVertical: 16,
+  },
+  // Stamp rows
+  stampRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  stampDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#ddd',
+    marginRight: 10,
+  },
+  stampDotGreen: {
+    backgroundColor: '#27ae60',
+  },
+  stampName: {
+    flex: 1,
+    fontSize: 14,
+    color: '#333',
+  },
+  stampStatus: {
+    fontSize: 12,
+    color: '#888',
+  },
+  stampStatusGreen: {
+    color: '#27ae60',
+    fontWeight: '600',
+  },
+  // Quiz
+  boothQuizRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingVertical: 12,
     paddingHorizontal: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
-  boothSelectId: {
+  boothQuizLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  boothQuizId: {
     fontSize: 14,
     fontWeight: 'bold',
     color: '#3498db',
-    width: 50,
+    width: 40,
   },
-  boothSelectName: {
+  boothQuizName: {
+    fontSize: 14,
+    color: '#333',
+  },
+  boothQuizRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  badgeGreen: {
+    fontSize: 12,
+    color: '#27ae60',
+    fontWeight: '600',
+  },
+  badgeRed: {
+    fontSize: 12,
+    color: '#e74c3c',
+    fontWeight: '600',
+  },
+  attemptsText: {
+    fontSize: 12,
+    color: '#888',
+  },
+  backLink: {
+    fontSize: 14,
+    color: '#3498db',
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  questionRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+    gap: 10,
+  },
+  questionNum: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: '#3498db',
+    width: 30,
+  },
+  questionPreview: {
     flex: 1,
     fontSize: 14,
     color: '#333',
+    lineHeight: 20,
   },
-  boothSelectArrow: {
-    fontSize: 16,
-    color: '#888',
-  },
-  qrBoothName: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#333',
-    textAlign: 'center',
-  },
-  qrBoothId: {
-    fontSize: 14,
-    color: '#888',
-    textAlign: 'center',
-    marginBottom: 20,
-    marginTop: 4,
-  },
-  qrDataBox: {
+  questionCard: {
     backgroundColor: '#f8f9fa',
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
   },
-  qrDataLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#555',
-    marginBottom: 8,
-  },
-  qrDataInput: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 18,
-    fontWeight: 'bold',
+  questionText: {
+    fontSize: 15,
     color: '#333',
-    textAlign: 'center',
-    fontFamily: 'monospace',
+    fontWeight: '600',
+    lineHeight: 22,
   },
-  qrHint: {
-    fontSize: 12,
+  answerOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#eee',
+  },
+  answerOptionSelected: {
+    backgroundColor: '#e3f2fd',
+    borderColor: '#3498db',
+  },
+  answerLetter: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#eee',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  answerLetterSelected: {
+    backgroundColor: '#3498db',
+  },
+  answerLetterText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#555',
+  },
+  answerText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#333',
+  },
+  answerTextSelected: {
+    fontWeight: '600',
+    color: '#1565c0',
+  },
+  // Reset
+  resetStats: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 40,
+    marginBottom: 24,
+    marginTop: 8,
+  },
+  resetStat: {
+    alignItems: 'center',
+  },
+  resetStatNum: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#e74c3c',
+  },
+  resetStatLabel: {
+    fontSize: 13,
     color: '#888',
-    marginTop: 10,
-    textAlign: 'center',
-    lineHeight: 18,
+    marginTop: 4,
   },
-  backBtn: {
-    backgroundColor: '#ecf0f1',
-    paddingVertical: 14,
+  resetBtn: {
+    backgroundColor: '#e74c3c',
+    paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
   },
-  backBtnText: {
-    color: '#555',
+  resetBtnText: {
+    color: '#fff',
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: 'bold',
   },
 });

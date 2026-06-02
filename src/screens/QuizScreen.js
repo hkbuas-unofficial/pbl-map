@@ -7,12 +7,13 @@ import {
   Dimensions,
   StatusBar,
   Animated,
+  ScrollView,
 } from 'react-native';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
 export default function QuizScreen({ booth, onClose, appData }) {
-  const { addStamp, incrementAttempt, hasStamp, getRemainingAttempts } = appData;
+  const { addStamp, incrementAttempt, getRemainingAttempts } = appData;
 
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [selectedOption, setSelectedOption] = useState(null);
@@ -113,155 +114,157 @@ export default function QuizScreen({ booth, onClose, appData }) {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#1a1a2e" />
+      <StatusBar barStyle="dark-content" backgroundColor="#f5f5f5" />
       
-      {/* Background gradient effect */}
-      <View style={styles.bgTop} />
-      <View style={styles.bgBottom} />
-
-      <Animated.View
-        style={[
-          styles.content,
-          {
-            opacity: fadeAnim,
-            transform: [{ translateY: slideAnim }],
-          },
-        ]}
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.boothBadge}>
-            <Text style={styles.boothBadgeText}>{booth.booth_id}</Text>
-          </View>
-          <Text style={styles.boothName}>{booth.booth_name}</Text>
-          <View style={styles.attemptBadge}>
-            <Text style={styles.attemptBadgeText}>
-              Attempt {attemptNum} of 5
-            </Text>
-          </View>
-        </View>
-
-        {/* Question Card */}
         <Animated.View
           style={[
-            styles.questionCard,
-            { transform: [{ translateX: shakeAnim }] },
+            styles.card,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+            },
           ]}
         >
-          <View style={styles.questionNumber}>
-            <Text style={styles.questionNumberText}>Q</Text>
+          {/* Header */}
+          <View style={styles.header}>
+            <View style={styles.boothBadge}>
+              <Text style={styles.boothBadgeText}>{booth.booth_id}</Text>
+            </View>
+            <Text style={styles.boothName}>{booth.booth_name}</Text>
+            <View style={styles.attemptBadge}>
+              <Text style={styles.attemptBadgeText}>
+                Attempt {attemptNum} of 5
+              </Text>
+            </View>
           </View>
-          <Text style={styles.questionText}>{currentQuestion.question}</Text>
-        </Animated.View>
 
-        {/* Options */}
-        <View style={styles.optionsContainer}>
-          {Object.entries(currentQuestion.options).map(([key, value], index) => {
-            const color = optionColors[key];
-            let cardStyle = [styles.optionCard, { borderLeftColor: color }];
-            let letterStyle = [styles.optionLetter, { backgroundColor: color }];
-            let textStyle = styles.optionText;
+          {/* Question Card */}
+          <Animated.View
+            style={[
+              styles.questionCard,
+              { transform: [{ translateX: shakeAnim }] },
+            ]}
+          >
+            <View style={styles.questionNumber}>
+              <Text style={styles.questionNumberText}>Q</Text>
+            </View>
+            <Text style={styles.questionText}>{currentQuestion.question}</Text>
+          </Animated.View>
 
-            if (result) {
-              if (key === currentQuestion.answer) {
-                cardStyle = [...cardStyle, styles.optionCorrect];
-                letterStyle = [...letterStyle, styles.optionLetterCorrect];
-              } else if (key === selectedOption && key !== currentQuestion.answer) {
-                cardStyle = [...cardStyle, styles.optionWrong];
-                letterStyle = [...letterStyle, styles.optionLetterWrong];
-              } else {
-                cardStyle = [...cardStyle, styles.optionDimmed];
+          {/* Options */}
+          <View style={styles.optionsContainer}>
+            {Object.entries(currentQuestion.options).map(([key, value]) => {
+              const color = optionColors[key];
+              let cardStyle = [styles.optionCard, { borderLeftColor: color }];
+              let letterStyle = [styles.optionLetter, { backgroundColor: color }];
+              let textStyle = styles.optionText;
+
+              if (result) {
+                if (key === currentQuestion.answer) {
+                  cardStyle = [...cardStyle, styles.optionCorrect];
+                  letterStyle = [...letterStyle, styles.optionLetterCorrect];
+                } else if (key === selectedOption && key !== currentQuestion.answer) {
+                  cardStyle = [...cardStyle, styles.optionWrong];
+                  letterStyle = [...letterStyle, styles.optionLetterWrong];
+                } else {
+                  cardStyle = [...cardStyle, styles.optionDimmed];
+                }
+              } else if (key === selectedOption) {
+                cardStyle = [...cardStyle, styles.optionSelected];
+                letterStyle = [...letterStyle, styles.optionLetterSelected];
+                textStyle = styles.optionTextSelected;
               }
-            } else if (key === selectedOption) {
-              cardStyle = [...cardStyle, styles.optionSelected];
-              letterStyle = [...letterStyle, styles.optionLetterSelected];
-              textStyle = styles.optionTextSelected;
-            }
 
-            return (
-              <TouchableOpacity
-                key={key}
-                style={cardStyle}
-                onPress={() => handleSelect(key)}
-                disabled={!!result}
-                activeOpacity={0.7}
-              >
-                <View style={letterStyle}>
-                  <Text style={styles.optionLetterText}>{optionLabels[key]}</Text>
-                </View>
-                <Text style={textStyle}>{value}</Text>
-                {result && key === currentQuestion.answer && (
-                  <Text style={styles.checkMark}>✓</Text>
-                )}
-                {result && key === selectedOption && key !== currentQuestion.answer && (
-                  <Text style={styles.xMark}>✕</Text>
-                )}
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+              return (
+                <TouchableOpacity
+                  key={key}
+                  style={cardStyle}
+                  onPress={() => handleSelect(key)}
+                  disabled={!!result}
+                  activeOpacity={0.7}
+                >
+                  <View style={letterStyle}>
+                    <Text style={styles.optionLetterText}>{optionLabels[key]}</Text>
+                  </View>
+                  <Text style={textStyle}>{value}</Text>
+                  {result && key === currentQuestion.answer && (
+                    <Text style={styles.checkMark}>✓</Text>
+                  )}
+                  {result && key === selectedOption && key !== currentQuestion.answer && (
+                    <Text style={styles.xMark}>✕</Text>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
 
-        {/* Result Area */}
-        {result === 'correct' && (
-          <Animated.View style={styles.resultArea}>
-            <View style={styles.resultIconCircle}>
-              <Text style={styles.resultIcon}>🎉</Text>
+          {/* Result Area */}
+          {result === 'correct' && (
+            <View style={styles.resultArea}>
+              <View style={styles.resultIconCircle}>
+                <Text style={styles.resultIcon}>🎉</Text>
+              </View>
+              <Text style={styles.resultTitle}>Correct!</Text>
+              <Text style={styles.resultSub}>Stamp earned for {booth.booth_name}</Text>
             </View>
-            <Text style={styles.resultTitle}>Correct!</Text>
-            <Text style={styles.resultSub}>Stamp earned for {booth.booth_name}</Text>
-          </Animated.View>
-        )}
-
-        {result === 'wrong' && (
-          <Animated.View style={styles.resultArea}>
-            <View style={[styles.resultIconCircle, styles.resultIconWrong]}>
-              <Text style={styles.resultIcon}>😅</Text>
-            </View>
-            <Text style={[styles.resultTitle, styles.resultTitleWrong]}>Not quite!</Text>
-            {getRemainingAttempts(booth.booth_id) > 0 ? (
-              <Text style={styles.resultSub}>
-                {getRemainingAttempts(booth.booth_id)} attempt{getRemainingAttempts(booth.booth_id) !== 1 ? 's' : ''} remaining
-              </Text>
-            ) : (
-              <Text style={[styles.resultSub, styles.resultSubLocked]}>
-                No more attempts. Booth locked.
-              </Text>
-            )}
-          </Animated.View>
-        )}
-
-        {/* Action Button */}
-        <View style={styles.actionArea}>
-          {!result ? (
-            <TouchableOpacity
-              style={[
-                styles.submitBtn,
-                !selectedOption && styles.submitBtnDisabled,
-              ]}
-              onPress={handleSubmit}
-              disabled={!selectedOption}
-            >
-              <Text style={styles.submitBtnText}>Submit Answer</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              style={[
-                styles.nextBtn,
-                result === 'wrong' && getRemainingAttempts(booth.booth_id) <= 0 && styles.nextBtnLocked,
-              ]}
-              onPress={handleNext}
-            >
-              <Text style={styles.nextBtnText}>
-                {result === 'correct'
-                  ? 'Collect Stamp →'
-                  : getRemainingAttempts(booth.booth_id) > 0
-                  ? 'Try Another Question'
-                  : 'Close'}
-              </Text>
-            </TouchableOpacity>
           )}
-        </View>
-      </Animated.View>
+
+          {result === 'wrong' && (
+            <View style={styles.resultArea}>
+              <View style={[styles.resultIconCircle, styles.resultIconWrong]}>
+                <Text style={styles.resultIcon}>😅</Text>
+              </View>
+              <Text style={[styles.resultTitle, styles.resultTitleWrong]}>Not quite!</Text>
+              {getRemainingAttempts(booth.booth_id) > 0 ? (
+                <Text style={styles.resultSub}>
+                  {getRemainingAttempts(booth.booth_id)} attempt{getRemainingAttempts(booth.booth_id) !== 1 ? 's' : ''} remaining
+                </Text>
+              ) : (
+                <Text style={[styles.resultSub, styles.resultSubLocked]}>
+                  No more attempts. Booth locked.
+                </Text>
+              )}
+            </View>
+          )}
+
+          {/* Action Button */}
+          <View style={styles.actionArea}>
+            {!result ? (
+              <TouchableOpacity
+                style={[
+                  styles.submitBtn,
+                  !selectedOption && styles.submitBtnDisabled,
+                ]}
+                onPress={handleSubmit}
+                disabled={!selectedOption}
+              >
+                <Text style={styles.submitBtnText}>Submit Answer</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={[
+                  styles.nextBtn,
+                  result === 'wrong' && getRemainingAttempts(booth.booth_id) <= 0 && styles.nextBtnLocked,
+                ]}
+                onPress={handleNext}
+              >
+                <Text style={styles.nextBtnText}>
+                  {result === 'correct'
+                    ? 'Collect Stamp →'
+                    : getRemainingAttempts(booth.booth_id) > 0
+                    ? 'Try Another Question'
+                    : 'Close'}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </Animated.View>
+      </ScrollView>
     </View>
   );
 }
@@ -269,60 +272,52 @@ export default function QuizScreen({ booth, onClose, appData }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#f5f5f5',
   },
-  bgTop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: SCREEN_H * 0.4,
-    backgroundColor: '#16213e',
-    borderBottomLeftRadius: 40,
-    borderBottomRightRadius: 40,
-  },
-  bgBottom: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: SCREEN_H * 0.3,
-    backgroundColor: '#0f3460',
-    borderTopLeftRadius: 40,
-    borderTopRightRadius: 40,
-    opacity: 0.3,
-  },
-  content: {
+  scrollView: {
     flex: 1,
-    paddingHorizontal: 24,
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
     paddingTop: 50,
     paddingBottom: 30,
+    minHeight: SCREEN_H,
+  },
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 24,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 6,
   },
   header: {
     alignItems: 'center',
     marginBottom: 24,
   },
   boothBadge: {
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: '#e3f2fd',
     paddingHorizontal: 16,
     paddingVertical: 6,
     borderRadius: 20,
     marginBottom: 8,
   },
   boothBadgeText: {
-    color: '#fff',
+    color: '#1976d2',
     fontSize: 13,
     fontWeight: 'bold',
     letterSpacing: 1,
   },
   boothName: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: 'bold',
-    color: '#fff',
+    color: '#333',
     marginBottom: 10,
   },
   attemptBadge: {
-    backgroundColor: 'rgba(243,156,18,0.2)',
+    backgroundColor: 'rgba(243,156,18,0.15)',
     paddingHorizontal: 14,
     paddingVertical: 5,
     borderRadius: 12,
@@ -333,18 +328,15 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   questionCard: {
-    backgroundColor: '#fff',
+    backgroundColor: '#f8f9fa',
     borderRadius: 20,
-    padding: 24,
+    padding: 20,
     marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
-    elevation: 10,
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 14,
+    borderWidth: 1,
+    borderColor: '#e8e8e8',
   },
   questionNumber: {
     width: 36,
@@ -361,10 +353,10 @@ const styles = StyleSheet.create({
   },
   questionText: {
     flex: 1,
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '600',
     color: '#2c3e50',
-    lineHeight: 26,
+    lineHeight: 24,
   },
   optionsContainer: {
     gap: 12,
@@ -377,27 +369,31 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     borderLeftWidth: 4,
+    borderWidth: 1,
+    borderColor: '#eee',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 1,
   },
   optionSelected: {
     backgroundColor: '#e3f2fd',
-    borderLeftWidth: 4,
+    borderColor: '#bbdefb',
     transform: [{ scale: 1.02 }],
   },
   optionCorrect: {
     backgroundColor: '#e8f5e9',
     borderLeftColor: '#27ae60',
+    borderColor: '#c8e6c9',
   },
   optionWrong: {
     backgroundColor: '#ffebee',
     borderLeftColor: '#e74c3c',
+    borderColor: '#ffcdd2',
   },
   optionDimmed: {
-    opacity: 0.5,
+    opacity: 0.4,
   },
   optionLetter: {
     width: 36,
@@ -444,6 +440,7 @@ const styles = StyleSheet.create({
   resultArea: {
     alignItems: 'center',
     marginBottom: 20,
+    paddingVertical: 10,
   },
   resultIconCircle: {
     width: 64,
@@ -470,14 +467,14 @@ const styles = StyleSheet.create({
   },
   resultSub: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.6)',
+    color: '#888',
     marginTop: 4,
   },
   resultSubLocked: {
     color: '#e74c3c',
   },
   actionArea: {
-    marginTop: 'auto',
+    marginTop: 8,
   },
   submitBtn: {
     backgroundColor: '#3498db',
@@ -486,12 +483,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     shadowColor: '#3498db',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.2,
     shadowRadius: 8,
-    elevation: 5,
+    elevation: 3,
   },
   submitBtnDisabled: {
-    backgroundColor: '#546e7a',
+    backgroundColor: '#b0bec5',
     shadowOpacity: 0,
   },
   submitBtnText: {
@@ -506,12 +503,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     shadowColor: '#27ae60',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.2,
     shadowRadius: 8,
-    elevation: 5,
+    elevation: 3,
   },
   nextBtnLocked: {
-    backgroundColor: '#546e7a',
+    backgroundColor: '#78909c',
     shadowOpacity: 0,
   },
   nextBtnText: {

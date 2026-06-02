@@ -8,19 +8,25 @@ import {
   Alert,
   Modal,
   StatusBar,
+  Image,
+  Dimensions,
 } from 'react-native';
-import { REDEMPTION_THRESHOLD, REDEMPTION_COST } from '../hooks/useAppData';
+import { REDEMPTION_COST } from '../hooks/useAppData';
+
+const { width: SCREEN_W } = Dimensions.get('window');
+
+const STAMP_EMPTY_IMG = require('../../assets/stamp_empty.png');
+const STAMP_FILLED_IMG = require('../../assets/stamp_filled.png');
+const STAMP_REDEEM_IMG = require('../../assets/stamp_redeem.png');
 
 export default function WalletScreen({ appData }) {
   const {
     booths,
-    stamps,
     redemptions,
     getStampCount,
     hasStamp,
     canRedeem,
     redeemSouvenir,
-    resetAll,
   } = appData;
 
   const [redeemModalVisible, setRedeemModalVisible] = useState(false);
@@ -28,13 +34,19 @@ export default function WalletScreen({ appData }) {
 
   const stampCount = getStampCount();
   const totalBooths = booths.length;
-  const progress = totalBooths > 0 ? stampCount / totalBooths : 0;
+  // Stamp card shows exactly REDEMPTION_COST slots (stamps needed to redeem)
+  const cardSlots = REDEMPTION_COST;
+  const filledSlots = Math.min(stampCount, cardSlots);
+  const showRedeemSlot = filledSlots >= cardSlots;
+
+  // Only completed (stamped) booths for history
+  const completedBooths = booths.filter(b => hasStamp(b.booth_id));
 
   const handleRedeem = () => {
     if (!canRedeem()) {
       Alert.alert(
         'Not Enough Stamps',
-        `You need ${REDEMPTION_THRESHOLD} stamps to redeem. You have ${stampCount}.`
+        `You need stamps to redeem. You have ${stampCount}.`
       );
       return;
     }
@@ -46,7 +58,7 @@ export default function WalletScreen({ appData }) {
     if (success) {
       setShowStaffScreen(false);
       setRedeemModalVisible(false);
-      Alert.alert('Success!', `Souvenir redeemed! ${REDEMPTION_COST} stamps deducted.`);
+      Alert.alert('Success!', `Souvenir redeemed! Stamps deducted.`);
     } else {
       Alert.alert('Error', 'Could not redeem. Please try again.');
     }
@@ -62,7 +74,7 @@ export default function WalletScreen({ appData }) {
           text: 'Reset',
           style: 'destructive',
           onPress: async () => {
-            await resetAll();
+            await appData.resetAll();
             Alert.alert('Reset Complete', 'All data has been cleared.');
           },
         },
@@ -70,93 +82,10 @@ export default function WalletScreen({ appData }) {
     );
   };
 
-  // Full-screen staff verification page
-  if (showStaffScreen) {
-    return (
-      <View style={styles.staffContainer}>
-        <StatusBar barStyle="light-content" backgroundColor="#1a1a2e" />
-        
-        {/* Background shapes */}
-        <View style={styles.staffBgTop} />
-        <View style={styles.staffBgBottom} />
-
-        {/* Header */}
-        <View style={styles.staffHeader}>
-          <TouchableOpacity
-            style={styles.staffBackBtn}
-            onPress={() => setShowStaffScreen(false)}
-          >
-            <Text style={styles.staffBackText}>← Back</Text>
-          </TouchableOpacity>
-          <Text style={styles.staffHeaderTitle}>Staff Verification</Text>
-          <View style={{ width: 60 }} />
-        </View>
-
-        <ScrollView
-          style={styles.staffScroll}
-          contentContainerStyle={styles.staffScrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Staff Icon */}
-          <View style={styles.staffIconCircle}>
-            <Text style={{ fontSize: 56 }}>👤</Text>
-          </View>
-
-          <Text style={styles.staffTitle}>Staff Only</Text>
-          <Text style={styles.staffSubtitle}>
-            Please verify the participant has received their souvenir.
-          </Text>
-
-          {/* Participant Summary Card */}
-          <View style={styles.staffSummaryCard}>
-            <Text style={styles.staffSummaryTitle}>Participant Summary</Text>
-            <View style={styles.staffSummaryRow}>
-              <Text style={styles.staffSummaryLabel}>Current Stamps</Text>
-              <Text style={styles.staffSummaryValue}>{stampCount}</Text>
-            </View>
-            <View style={styles.staffSummaryRow}>
-              <Text style={styles.staffSummaryLabel}>Redemption Cost</Text>
-              <Text style={[styles.staffSummaryValue, styles.staffSummaryDeduction]}>
-                -{REDEMPTION_COST}
-              </Text>
-            </View>
-            <View style={styles.staffSummaryDivider} />
-            <View style={styles.staffSummaryRow}>
-              <Text style={styles.staffSummaryLabel}>Remaining After</Text>
-              <Text style={styles.staffSummaryValue}>{stampCount - REDEMPTION_COST}</Text>
-            </View>
-            <View style={styles.staffSummaryRow}>
-              <Text style={styles.staffSummaryLabel}>Total Redemptions</Text>
-              <Text style={styles.staffSummaryValue}>{redemptions}</Text>
-            </View>
-          </View>
-
-          {/* Warning */}
-          <View style={styles.staffWarningBox}>
-            <Text style={styles.staffWarningIcon}>⚠️</Text>
-            <Text style={styles.staffWarningText}>
-              This action cannot be undone. Tapping "Confirm Redeemed" will permanently deduct {REDEMPTION_COST} stamps from this participant's wallet.
-            </Text>
-          </View>
-
-          {/* Action Buttons */}
-          <TouchableOpacity
-            style={styles.staffConfirmBtn}
-            onPress={handleStaffConfirm}
-          >
-            <Text style={styles.staffConfirmBtnText}>✓ Confirm Redeemed</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.staffCancelBtn}
-            onPress={() => setShowStaffScreen(false)}
-          >
-            <Text style={styles.staffCancelBtnText}>Cancel — Go Back</Text>
-          </TouchableOpacity>
-        </ScrollView>
-      </View>
-    );
-  }
+  // Calculate grid layout: aim for roughly square-ish grid
+  // If cardSlots = 3 → 1 row of 3, or stack vertically on narrow screens
+  // We use a vertical stack (column) approach for the stamp card
+  const isNarrow = SCREEN_W < 360;
 
   return (
     <View style={styles.container}>
@@ -166,84 +95,78 @@ export default function WalletScreen({ appData }) {
       </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        {/* Stamp Counter Card */}
-        <View style={styles.counterCard}>
-          <View style={styles.stampCircle}>
-            <Text style={styles.stampNumber}>{stampCount}</Text>
-            <Text style={styles.stampLabel}>STAMPS</Text>
-          </View>
-          
-          <View style={styles.counterRow}>
-            <View style={styles.counterItem}>
-              <Text style={styles.counterNumber}>{redemptions}</Text>
-              <Text style={styles.counterLabel}>Redeemed</Text>
+        {/* Stamp Card - vertical stack, always fits */}
+        <View style={styles.stampCardContainer}>
+          <View style={[styles.stampCard, isNarrow && styles.stampCardNarrow]}>
+            {/* Stamp slots stacked vertically */}
+            <View style={styles.stampStack}>
+              {Array.from({ length: cardSlots }).map((_, i) => {
+                const isFilled = i < filledSlots;
+                return (
+                  <View key={`slot-${i}`} style={styles.stampSlot}>
+                    <Image
+                      source={isFilled ? STAMP_FILLED_IMG : STAMP_EMPTY_IMG}
+                      style={styles.stampImage}
+                      resizeMode="contain"
+                    />
+                  </View>
+                );
+              })}
+              {/* Redeem prize slot when all card slots are filled */}
+              {showRedeemSlot && (
+                <TouchableOpacity style={styles.stampSlot} onPress={handleRedeem}>
+                  <Image
+                    source={STAMP_REDEEM_IMG}
+                    style={styles.stampImage}
+                    resizeMode="contain"
+                  />
+                </TouchableOpacity>
+              )}
             </View>
-            <View style={styles.counterDivider} />
-            <View style={styles.counterItem}>
-              <Text style={styles.counterNumber}>{totalBooths - stampCount}</Text>
-              <Text style={styles.counterLabel}>Remaining</Text>
-            </View>
           </View>
-
-          {/* Progress Bar */}
-          <View style={styles.progressContainer}>
-            <View style={styles.progressBar}>
-              <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
-            </View>
-            <Text style={styles.progressText}>
-              {stampCount} / {totalBooths} booths visited
-            </Text>
-          </View>
-        </View>
-
-        {/* Redeem Section */}
-        <View style={styles.redeemCard}>
-          <View style={styles.redeemIcon}>
-            <Text style={{ fontSize: 40 }}>🎁</Text>
-          </View>
-          <Text style={styles.redeemTitle}>Souvenir Redemption</Text>
-          <Text style={styles.redeemDesc}>
-            Collect <Text style={styles.bold}>{REDEMPTION_THRESHOLD}</Text> stamps to redeem a souvenir.
-            Each redemption costs <Text style={styles.bold}>{REDEMPTION_COST}</Text> stamps.
+          <Text style={styles.stampCardLabel}>
+            {stampCount} / {cardSlots} stamps for next prize
           </Text>
-
-          {canRedeem() ? (
-            <TouchableOpacity style={styles.redeemBtn} onPress={handleRedeem}>
-              <Text style={styles.redeemBtnText}>🎁 Redeem Souvenir</Text>
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.redeemLocked}>
-              <Text style={styles.redeemLockedText}>
-                {REDEMPTION_THRESHOLD - stampCount} more stamp{REDEMPTION_THRESHOLD - stampCount !== 1 ? 's' : ''} needed
-              </Text>
-            </View>
-          )}
         </View>
 
-        {/* Booth List */}
-        <Text style={styles.sectionTitle}>Booth Collection</Text>
-        {booths.map((booth) => {
-          const stamped = hasStamp(booth.booth_id);
-          return (
-            <View
-              key={booth.booth_id}
-              style={[styles.boothItem, stamped && styles.boothItemStamped]}
-            >
-              <View style={[styles.boothIcon, stamped && styles.boothIconStamped]}>
-                <Text style={{ fontSize: 22 }}>{stamped ? '🏆' : '📍'}</Text>
-              </View>
-              <View style={styles.boothInfo}>
-                <Text style={styles.boothId}>Booth {booth.booth_id}</Text>
-                <Text style={styles.boothName}>{booth.booth_name}</Text>
-              </View>
-              <View style={[styles.boothStatus, stamped && styles.boothStatusStamped]}>
-                <Text style={[styles.boothStatusText, stamped && styles.boothStatusTextStamped]}>
-                  {stamped ? '✓ Collected' : '○ Missing'}
-                </Text>
-              </View>
+        {/* Stats summary */}
+        <View style={styles.statsRow}>
+          <View style={styles.statBox}>
+            <Text style={styles.statNum}>{stampCount}</Text>
+            <Text style={styles.statLabel}>Total Stamps</Text>
+          </View>
+          <View style={styles.statBox}>
+            <Text style={styles.statNum}>{redemptions}</Text>
+            <Text style={styles.statLabel}>Redeemed</Text>
+          </View>
+          <View style={styles.statBox}>
+            <Text style={styles.statNum}>{totalBooths - stampCount}</Text>
+            <Text style={styles.statLabel}>Remaining</Text>
+          </View>
+        </View>
+
+        {/* Completed Booths History */}
+        {completedBooths.length > 0 && (
+          <>
+            <Text style={styles.sectionTitle}>Completed Booths</Text>
+            <View style={styles.historyList}>
+              {completedBooths.map((booth) => (
+                <View key={booth.booth_id} style={styles.historyItem}>
+                  <View style={styles.historyIcon}>
+                    <Text style={{ fontSize: 18 }}>🏆</Text>
+                  </View>
+                  <View style={styles.historyInfo}>
+                    <Text style={styles.historyId}>Booth {booth.booth_id}</Text>
+                    <Text style={styles.historyName}>{booth.booth_name}</Text>
+                  </View>
+                  <View style={styles.historyStatus}>
+                    <Text style={styles.historyStatusText}>✓</Text>
+                  </View>
+                </View>
+              ))}
             </View>
-          );
-        })}
+          </>
+        )}
 
         {/* Reset Button */}
         <TouchableOpacity style={styles.resetBtn} onPress={handleReset}>
@@ -251,7 +174,7 @@ export default function WalletScreen({ appData }) {
         </TouchableOpacity>
       </ScrollView>
 
-      {/* Redeem Modal (first step - participant view) */}
+      {/* Redeem Modal (participant view) */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -289,12 +212,94 @@ export default function WalletScreen({ appData }) {
           </View>
         </View>
       </Modal>
+
+      {/* Full-screen Staff Verification */}
+      {showStaffScreen && (
+        <View style={styles.staffContainer}>
+          <StatusBar barStyle="light-content" backgroundColor="#1a1a2e" />
+          
+          <View style={styles.staffBgTop} />
+          <View style={styles.staffBgBottom} />
+
+          <View style={styles.staffHeader}>
+            <TouchableOpacity
+              style={styles.staffBackBtn}
+              onPress={() => setShowStaffScreen(false)}
+            >
+              <Text style={styles.staffBackText}>← Back</Text>
+            </TouchableOpacity>
+            <Text style={styles.staffHeaderTitle}>Staff Verification</Text>
+            <View style={{ width: 60 }} />
+          </View>
+
+          <ScrollView
+            style={styles.staffScroll}
+            contentContainerStyle={styles.staffScrollContent}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.staffIconCircle}>
+              <Text style={{ fontSize: 56 }}>👤</Text>
+            </View>
+
+            <Text style={styles.staffTitle}>Staff Only</Text>
+            <Text style={styles.staffSubtitle}>
+              Please verify the participant has received their souvenir.
+            </Text>
+
+            <View style={styles.staffSummaryCard}>
+              <Text style={styles.staffSummaryTitle}>Participant Summary</Text>
+              <View style={styles.staffSummaryRow}>
+                <Text style={styles.staffSummaryLabel}>Current Stamps</Text>
+                <Text style={styles.staffSummaryValue}>{stampCount}</Text>
+              </View>
+              <View style={styles.staffSummaryRow}>
+                <Text style={styles.staffSummaryLabel}>Redemption Cost</Text>
+                <Text style={[styles.staffSummaryValue, styles.staffSummaryDeduction]}>
+                  -{REDEMPTION_COST}
+                </Text>
+              </View>
+              <View style={styles.staffSummaryDivider} />
+              <View style={styles.staffSummaryRow}>
+                <Text style={styles.staffSummaryLabel}>Remaining After</Text>
+                <Text style={styles.staffSummaryValue}>{stampCount - REDEMPTION_COST}</Text>
+              </View>
+              <View style={styles.staffSummaryRow}>
+                <Text style={styles.staffSummaryLabel}>Total Redemptions</Text>
+                <Text style={styles.staffSummaryValue}>{redemptions}</Text>
+              </View>
+            </View>
+
+            <View style={styles.staffWarningBox}>
+              <Text style={styles.staffWarningIcon}>⚠️</Text>
+              <Text style={styles.staffWarningText}>
+                This action cannot be undone. Tapping "Confirm Redeemed" will permanently deduct {REDEMPTION_COST} stamps from this participant's wallet.
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              style={styles.staffConfirmBtn}
+              onPress={handleStaffConfirm}
+            >
+              <Text style={styles.staffConfirmBtnText}>✓ Confirm Redeemed</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.staffCancelBtn}
+              onPress={() => setShowStaffScreen(false)}
+            >
+              <Text style={styles.staffCancelBtnText}>Cancel — Go Back</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
+      )}
     </View>
   );
 }
 
+const CARD_W = Math.min(200, SCREEN_W - 48);
+const SLOT_SIZE = Math.min(80, (SCREEN_W - 80) / 3);
+
 const styles = StyleSheet.create({
-  // ========== MAIN WALLET SCREEN ==========
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
@@ -324,220 +329,127 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 40,
   },
-  counterCard: {
-    backgroundColor: '#fff',
-    borderRadius: 24,
-    padding: 24,
-    marginBottom: 16,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  stampCircle: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: '#e3f2fd',
-    justifyContent: 'center',
+  // Stamp Card - vertical stack
+  stampCardContainer: {
     alignItems: 'center',
     marginBottom: 20,
-    borderWidth: 4,
-    borderColor: '#bbdefb',
   },
-  stampNumber: {
-    fontSize: 42,
-    fontWeight: 'bold',
-    color: '#1976d2',
+  stampCard: {
+    width: CARD_W,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
   },
-  stampLabel: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#1976d2',
-    letterSpacing: 1,
+  stampCardNarrow: {
+    width: Math.min(160, SCREEN_W - 48),
   },
-  counterRow: {
+  stampStack: {
+    gap: 12,
+  },
+  stampSlot: {
+    width: '100%',
+    height: SLOT_SIZE,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  stampImage: {
+    width: SLOT_SIZE * 0.9,
+    height: SLOT_SIZE * 0.9,
+  },
+  stampCardLabel: {
+    fontSize: 13,
+    color: '#999',
+    marginTop: 8,
+    fontWeight: '500',
+  },
+  // Stats row
+  statsRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    width: '100%',
     marginBottom: 20,
+    gap: 10,
   },
-  counterItem: {
-    alignItems: 'center',
+  statBox: {
     flex: 1,
-  },
-  counterNumber: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  counterLabel: {
-    fontSize: 12,
-    color: '#888',
-    marginTop: 2,
-  },
-  counterDivider: {
-    width: 1,
-    backgroundColor: '#e0e0e0',
-  },
-  progressContainer: {
-    width: '100%',
-    marginTop: 4,
-  },
-  progressBar: {
-    height: 10,
-    backgroundColor: '#e0e0e0',
-    borderRadius: 5,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#27ae60',
-    borderRadius: 5,
-  },
-  progressText: {
-    fontSize: 12,
-    color: '#888',
-    marginTop: 8,
-    textAlign: 'center',
-  },
-  redeemCard: {
     backgroundColor: '#fff',
-    borderRadius: 24,
-    padding: 24,
-    marginBottom: 16,
+    borderRadius: 12,
+    padding: 14,
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
-  redeemIcon: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: '#fff3e0',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  redeemTitle: {
-    fontSize: 20,
+  statNum: {
+    fontSize: 22,
     fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
+    color: '#1976d2',
   },
-  redeemDesc: {
-    fontSize: 14,
-    color: '#666',
-    lineHeight: 20,
-    marginBottom: 18,
-    textAlign: 'center',
-  },
-  bold: {
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  redeemBtn: {
-    backgroundColor: '#e74c3c',
-    paddingVertical: 16,
-    paddingHorizontal: 40,
-    borderRadius: 16,
-    alignItems: 'center',
-    shadowColor: '#e74c3c',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  redeemBtnText: {
-    color: '#fff',
-    fontSize: 17,
-    fontWeight: 'bold',
-  },
-  redeemLocked: {
-    backgroundColor: '#ecf0f1',
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-  },
-  redeemLockedText: {
+  statLabel: {
+    fontSize: 11,
     color: '#888',
-    fontSize: 14,
-    fontWeight: '600',
+    marginTop: 2,
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 12,
+    marginBottom: 10,
     marginTop: 4,
   },
-  boothItem: {
+  // History List
+  historyList: {
+    gap: 6,
+  },
+  historyItem: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fff',
-    padding: 14,
-    borderRadius: 16,
-    marginBottom: 8,
-    borderLeftWidth: 4,
-    borderLeftColor: '#e0e0e0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 2,
-    elevation: 1,
+    padding: 10,
+    borderRadius: 10,
   },
-  boothItemStamped: {
-    borderLeftColor: '#27ae60',
-  },
-  boothIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: '#f5f5f5',
+  historyIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#e8f5e9',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 10,
   },
-  boothIconStamped: {
-    backgroundColor: '#e8f5e9',
-  },
-  boothInfo: {
+  historyInfo: {
     flex: 1,
   },
-  boothId: {
+  historyId: {
     fontSize: 11,
-    color: '#888',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    fontWeight: 'bold',
+    color: '#3498db',
   },
-  boothName: {
-    fontSize: 15,
-    fontWeight: '600',
+  historyName: {
+    fontSize: 14,
     color: '#333',
     marginTop: 1,
   },
-  boothStatus: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 10,
-    backgroundColor: '#f5f5f5',
-  },
-  boothStatusStamped: {
+  historyStatus: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: '#e8f5e9',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  boothStatusText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#888',
-  },
-  boothStatusTextStamped: {
+  historyStatusText: {
     color: '#27ae60',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
   resetBtn: {
     marginTop: 20,
@@ -548,8 +460,7 @@ const styles = StyleSheet.create({
     color: '#e74c3c',
     fontSize: 14,
   },
-
-  // ========== REDEEM MODAL (Participant) ==========
+  // Modal
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.6)',
@@ -593,6 +504,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 20,
   },
+  bold: {
+    fontWeight: 'bold',
+    color: '#333',
+  },
   staffBtn: {
     backgroundColor: '#f39c12',
     paddingVertical: 16,
@@ -616,11 +531,11 @@ const styles = StyleSheet.create({
     color: '#888',
     fontSize: 15,
   },
-
-  // ========== FULL-SCREEN STAFF VERIFICATION ==========
+  // Staff screen
   staffContainer: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: '#1a1a2e',
+    zIndex: 100,
   },
   staffBgTop: {
     position: 'absolute',

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,15 +7,17 @@ import {
   Dimensions,
   Animated,
   StatusBar,
+  Platform,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import QuizScreen from './QuizScreen';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 const SCAN_SIZE = Math.min(SCREEN_W, SCREEN_H) * 0.65;
+const IS_WEB = Platform.OS === 'web';
 
 export default function ScanScreen({ appData }) {
-  const { booths, hasStamp, isLockedOut, getRemainingAttempts, canAttempt } = appData;
+  const { booths, hasStamp, isLockedOut } = appData;
 
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
@@ -23,6 +25,15 @@ export default function ScanScreen({ appData }) {
   const [showQuiz, setShowQuiz] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
   const [scanLineAnim] = useState(new Animated.Value(0));
+
+  // Web QR scanner state
+  const [webScanError, setWebScanError] = useState(null);
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const scanCanvasRef = useRef(null);
+  const streamRef = useRef(null);
+  const qrScannerRef = useRef(null);
+  const animFrameRef = useRef(null);
 
   // Animate scan line
   useEffect(() => {
@@ -45,7 +56,7 @@ export default function ScanScreen({ appData }) {
     return () => scanLineAnim.setValue(0);
   }, [showQuiz]);
 
-  const handleBarCodeScanned = useCallback(({ data }) => {
+  const processScannedData = useCallback((data) => {
     if (scanned || showQuiz) return;
     setScanned(true);
 
@@ -84,6 +95,106 @@ export default function ScanScreen({ appData }) {
     setShowQuiz(true);
   }, [scanned, showQuiz, booths, hasStamp, isLockedOut]);
 
+  const handleBarCodeScanned = useCallback(({ data }) => {
+    processScannedData(data);
+  }, [processScannedData]);
+
+  // Web: simple video + jsQR scanning
+  useEffect(() => {
+    if (!IS_WEB || showQuiz) return;
+
+    let cancelled = false;
+
+    const initScanner = async () => {
+      try {
+        // Get camera stream
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment' }
+        });
+        if (cancelled) {
+          stream.getTracks().forEach(t => t.stop());
+          return;
+        }
+        streamRef.current = stream;
+
+        const video = document.createElement('video');
+        video.srcObject = stream;
+        video.setAttribute('playsinline', 'true');
+        video.style.width = '100%';
+        video.style.height = '100%';
+        video.style.objectFit = 'cover';
+        videoRef.current = video;
+
+        const container = document.getElementById('web-scanner-container');
+        if (!container) {
+          stream.getTracks().forEach(t => t.stop());
+          return;
+        }
+        container.innerHTML = '';
+        container.appendChild(video);
+
+        await video.play();
+
+        // Create canvas for QR scanning
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth || 640;
+        canvas.height = video.videoHeight || 480;
+        canvasRef.current = canvas;
+
+        // Load jsQR dynamically
+        const jsQRModule = await import('jsqr');
+        const jsQR = jsQRModule.default || jsQRModule;
+
+        let lastScanTime = 0;
+        const SCAN_INTERVAL = 300;
+
+        const scanLoop = () => {
+          if (cancelled) return;
+
+          const now = Date.now();
+          if (now - lastScanTime >= SCAN_INTERVAL) {
+            lastScanTime = now;
+
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const code = jsQR(imageData.data, canvas.width, canvas.height, {
+              inversionAttempts: 'attemptBoth',
+            });
+
+            if (code && code.data) {
+              processScannedData(code.data);
+            }
+          }
+
+          animFrameRef.current = requestAnimationFrame(scanLoop);
+        };
+
+        scanLoop();
+        setWebScanError(null);
+
+      } catch (err) {
+        console.error('Web QR scanner init error:', err);
+        if (!cancelled) {
+          setWebScanError(err.message || 'Failed to start camera');
+        }
+      }
+    };
+
+    initScanner();
+
+    return () => {
+      cancelled = true;
+      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+      const container = document.getElementById('web-scanner-container');
+      if (container) container.innerHTML = '';
+    };
+  }, [showQuiz, processScannedData]);
+
   const handleQuizClose = () => {
     setShowQuiz(false);
     setQuizBooth(null);
@@ -101,7 +212,83 @@ export default function ScanScreen({ appData }) {
     );
   }
 
-  // Permission handling
+  // Web scanner UI
+  if (IS_WEB) {
+    return (
+      <View style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor="#000" />
+        
+        {/* Web scanner container */}
+        <View style={styles.camera}>
+          <div
+            id="web-scanner-container"
+            style={{
+              width: '100%',
+              height: '100%',
+              position: 'relative',
+              backgroundColor: '#000',
+            }}
+          />
+        </View>
+
+        {/* Dark overlay with cutout */}
+        <View style={styles.overlay} pointerEvents="none">
+          <View style={[styles.darkOverlay, { height: (SCREEN_H - SCAN_SIZE) / 2 }]} />
+          <View style={styles.middleRow}>
+            <View style={[styles.darkOverlay, { width: (SCREEN_W - SCAN_SIZE) / 2 }]} />
+            <View style={[styles.scanFrame, { width: SCAN_SIZE, height: SCAN_SIZE }]}>
+              <View style={[styles.corner, styles.cornerTL]} />
+              <View style={[styles.corner, styles.cornerTR]} />
+              <View style={[styles.corner, styles.cornerBL]} />
+              <View style={[styles.corner, styles.cornerBR]} />
+              <Animated.View
+                style={[
+                  styles.scanLine,
+                  { transform: [{ translateY: scanLineAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0, SCAN_SIZE],
+                  }) }] },
+                ]}
+              />
+            </View>
+            <View style={[styles.darkOverlay, { width: (SCREEN_W - SCAN_SIZE) / 2 }]} />
+          </View>
+          <View style={[styles.darkOverlay, { flex: 1 }]} />
+        </View>
+
+        {/* UI Layer */}
+        <View style={styles.uiLayer} pointerEvents="box-none">
+          <View style={styles.header}>
+            <Text style={styles.headerTitle}>Scan QR Code</Text>
+            <Text style={styles.headerSub}>Point camera at a booth QR code</Text>
+          </View>
+
+          {webScanError && (
+            <View style={styles.errorToast}>
+              <Text style={styles.errorToastText}>{webScanError}</Text>
+              <Text style={styles.errorToastSub}>
+                Make sure camera permission is granted.
+              </Text>
+            </View>
+          )}
+
+          {errorMsg && (
+            <View style={styles.errorToast}>
+              <Text style={styles.errorToastText}>{errorMsg}</Text>
+            </View>
+          )}
+
+          <View style={styles.bottomInfo}>
+            <Text style={styles.bottomHint}>
+              {booths.filter(b => hasStamp(b.booth_id)).length} / {booths.length} stamps collected
+            </Text>
+          </View>
+        </View>
+      </View>
+    );
+  }
+
+  // Native mobile scanner
   if (!permission) {
     return (
       <View style={styles.permissionContainer}>
@@ -138,29 +325,24 @@ export default function ScanScreen({ appData }) {
         style={styles.camera}
         facing="back"
         barcodeScannerSettings={{
-          barcodeTypes: ['qr'],
+          barcodeTypes: ['qr', 'aztec', 'datamatrix'],
         }}
         onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
       />
 
       {/* Dark overlay with cutout */}
       <View style={styles.overlay} pointerEvents="none">
-        {/* Top */}
         <View style={[styles.darkOverlay, { height: (SCREEN_H - SCAN_SIZE) / 2 }]} />
         
-        {/* Middle row */}
         <View style={styles.middleRow}>
           <View style={[styles.darkOverlay, { width: (SCREEN_W - SCAN_SIZE) / 2 }]} />
           
-          {/* Scan frame */}
           <View style={[styles.scanFrame, { width: SCAN_SIZE, height: SCAN_SIZE }]}>
-            {/* Corner markers */}
             <View style={[styles.corner, styles.cornerTL]} />
             <View style={[styles.corner, styles.cornerTR]} />
             <View style={[styles.corner, styles.cornerBL]} />
             <View style={[styles.corner, styles.cornerBR]} />
             
-            {/* Animated scan line */}
             <Animated.View
               style={[
                 styles.scanLine,
@@ -172,43 +354,23 @@ export default function ScanScreen({ appData }) {
           <View style={[styles.darkOverlay, { width: (SCREEN_W - SCAN_SIZE) / 2 }]} />
         </View>
         
-        {/* Bottom */}
         <View style={[styles.darkOverlay, { flex: 1 }]} />
       </View>
 
       {/* UI Layer */}
       <View style={styles.uiLayer} pointerEvents="box-none">
-        {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Scan QR Code</Text>
           <Text style={styles.headerSub}>Point camera at a booth QR code</Text>
         </View>
 
-        {/* Error Toast */}
         {errorMsg && (
           <View style={styles.errorToast}>
             <Text style={styles.errorToastText}>{errorMsg}</Text>
           </View>
         )}
 
-        {/* Bottom info */}
         <View style={styles.bottomInfo}>
-          <View style={styles.boothsRow}>
-            {booths.map(b => {
-              const stamped = hasStamp(b.booth_id);
-              const locked = isLockedOut(b.booth_id);
-              let dotColor = '#fff';
-              if (stamped) dotColor = '#27ae60';
-              else if (locked) dotColor = '#e74c3c';
-              
-              return (
-                <View key={b.booth_id} style={styles.boothDotWrap}>
-                  <View style={[styles.boothDot, { backgroundColor: dotColor }]} />
-                  <Text style={styles.boothDotLabel}>{b.booth_id}</Text>
-                </View>
-              );
-            })}
-          </View>
           <Text style={styles.bottomHint}>
             {booths.filter(b => hasStamp(b.booth_id)).length} / {booths.length} stamps collected
           </Text>
@@ -303,7 +465,6 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.7)',
     marginTop: 6,
     textShadowColor: 'rgba(0,0,0,0.5)',
-    textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
   },
   errorToast: {
@@ -319,31 +480,16 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
   },
+  errorToastSub: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 12,
+    marginTop: 6,
+    textAlign: 'center',
+  },
   bottomInfo: {
     alignItems: 'center',
     paddingBottom: 40,
     paddingHorizontal: 20,
-  },
-  boothsRow: {
-    flexDirection: 'row',
-    gap: 16,
-    marginBottom: 12,
-  },
-  boothDotWrap: {
-    alignItems: 'center',
-    gap: 4,
-  },
-  boothDot: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.5)',
-  },
-  boothDotLabel: {
-    fontSize: 10,
-    color: 'rgba(255,255,255,0.7)',
-    fontWeight: '600',
   },
   bottomHint: {
     fontSize: 13,

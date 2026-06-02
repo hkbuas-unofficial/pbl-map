@@ -1,18 +1,56 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 
-export default function BoothPin({ booth, hasStamp, onPress }) {
+// Base pin size at zoom level 1 (fully zoomed in / 1:1 scale)
+const BASE_PIN_SIZE = 72;
+const BASE_FONT_SIZE = 22;
+const BASE_LABEL_FONT = 14;
+
+export default function BoothPin({ booth, hasStamp, onPress, scale = 1 }) {
+  // scale is an inverse scale factor: smaller when zoomed in, larger when zoomed out
+  // This keeps the pin visually constant on screen
+  const pinSize = Math.round(BASE_PIN_SIZE * scale);
+  const fontSize = Math.round(BASE_FONT_SIZE * scale);
+  const labelFont = Math.round(BASE_LABEL_FONT * scale);
+  const borderRadius = Math.round(pinSize / 2);
+  const borderWidth = Math.max(1, Math.round(3 * scale));
+
   return (
     <TouchableOpacity
       style={styles.pinContainer}
       onPress={onPress}
       activeOpacity={0.8}
     >
-      <View style={[styles.pin, hasStamp && styles.pinStamped]}>
-        <Text style={styles.pinText}>{hasStamp ? '✓' : booth.booth_id}</Text>
+      <View
+        style={[
+          styles.pin,
+          hasStamp && styles.pinStamped,
+          {
+            width: pinSize,
+            height: pinSize,
+            borderRadius: borderRadius,
+            borderWidth: borderWidth,
+          },
+        ]}
+      >
+        <Text style={[styles.pinText, { fontSize: fontSize }]}>
+          {hasStamp ? '✓' : booth.booth_id}
+        </Text>
       </View>
-      <View style={styles.labelContainer}>
-        <Text style={styles.label}>{booth.booth_name}</Text>
+      <View
+        style={[
+          styles.labelContainer,
+          {
+            paddingHorizontal: Math.max(4, Math.round(12 * scale)),
+            paddingVertical: Math.max(2, Math.round(4 * scale)),
+            borderRadius: Math.max(4, Math.round(8 * scale)),
+            marginTop: Math.max(2, Math.round(6 * scale)),
+          },
+        ]}
+      >
+        <Text style={[styles.label, { fontSize: labelFont }]}>
+          {booth.booth_name}
+        </Text>
       </View>
     </TouchableOpacity>
   );
@@ -24,19 +62,15 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   pin: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
     backgroundColor: '#e74c3c',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
     borderColor: '#fff',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.5,
-    shadowRadius: 4,
-    elevation: 6,
+    shadowRadius: 6,
+    elevation: 8,
   },
   pinStamped: {
     backgroundColor: '#27ae60',
@@ -44,18 +78,12 @@ const styles = StyleSheet.create({
   pinText: {
     color: '#fff',
     fontWeight: 'bold',
-    fontSize: 12,
   },
   labelContainer: {
     backgroundColor: 'rgba(0,0,0,0.75)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    marginTop: 4,
   },
   label: {
     color: '#fff',
-    fontSize: 10,
     fontWeight: '700',
   },
 });
