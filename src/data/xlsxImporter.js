@@ -5,7 +5,7 @@ import * as XLSX from 'xlsx';
 
 /**
  * Expected column headers in the .xlsx file:
- * booth_id, booth_name, booth_x, booth_y,
+ * booth_id, booth_name, booth_location, booth_x, booth_y,
  * question_1, option_1a, option_1b, option_1c, option_1d, answer_1,
  * question_2, option_2a, option_2b, option_2c, option_2d, answer_2,
  * ... (repeat for questions 3-5)
@@ -33,6 +33,7 @@ export function importBoothDataFromXlsx(fileData) {
     const booth = {
       booth_id: String(getCell(row, headers, 'booth_id') || '').trim().toUpperCase(),
       booth_name: String(getCell(row, headers, 'booth_name') || '').trim(),
+      booth_location: String(getCell(row, headers, 'booth_location') || '').trim(),
       booth_x: parseFloat(getCell(row, headers, 'booth_x')) || 50,
       booth_y: parseFloat(getCell(row, headers, 'booth_y')) || 50,
       questions: [],

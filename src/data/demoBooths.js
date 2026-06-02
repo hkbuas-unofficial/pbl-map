@@ -5,6 +5,7 @@ export const DEMO_BOOTHS = [
   {
     booth_id: 'A01',
     booth_name: 'Science Lab',
+    booth_location: '2nd Floor, Room 201, near the elevator',
     booth_x: 25,
     booth_y: 30,
     questions: [
@@ -38,6 +39,7 @@ export const DEMO_BOOTHS = [
   {
     booth_id: 'A02',
     booth_name: 'Tech Hub',
+    booth_location: 'Ground Floor, Main Hall, left of entrance',
     booth_x: 60,
     booth_y: 25,
     questions: [
@@ -71,6 +73,7 @@ export const DEMO_BOOTHS = [
   {
     booth_id: 'B01',
     booth_name: 'Art Studio',
+    booth_location: '3rd Floor, Room 305, art wing',
     booth_x: 40,
     booth_y: 60,
     questions: [
@@ -104,6 +107,7 @@ export const DEMO_BOOTHS = [
   {
     booth_id: 'B02',
     booth_name: 'History Corner',
+    booth_location: '1st Floor, Library section B',
     booth_x: 75,
     booth_y: 55,
     questions: [
@@ -137,6 +141,7 @@ export const DEMO_BOOTHS = [
   {
     booth_id: 'C01',
     booth_name: 'Sports Zone',
+    booth_location: 'Basement, Gymnasium entrance',
     booth_x: 15,
     booth_y: 75,
     questions: [

@@ -27,7 +27,7 @@
     "xlsx": "^0.18.5"
   },
   "scripts": {
-    "predeploy": "expo export --platform web",
+    "predeploy": "expo export --platform web && node fix-gh-pages.js",
     "deploy": "gh-pages -d dist",
     "start": "expo start",
     "web": "expo start --web"

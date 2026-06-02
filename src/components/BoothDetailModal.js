@@ -43,6 +43,13 @@ export default function BoothDetailModal({
             <Text style={styles.boothId}>BOOTH {booth.booth_id}</Text>
             <Text style={styles.boothName}>{booth.booth_name}</Text>
 
+            {booth.booth_location ? (
+              <View style={styles.locationBox}>
+                <Text style={styles.locationIcon}>📍</Text>
+                <Text style={styles.locationText}>{booth.booth_location}</Text>
+              </View>
+            ) : null}
+
             <View style={styles.statusBox}>
               {hasStamp ? (
                 <>
@@ -151,7 +158,27 @@ const styles = StyleSheet.create({
     color: '#333',
     textAlign: 'center',
     marginTop: 4,
-    marginBottom: 20,
+    marginBottom: 12,
+  },
+  locationBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#e3f2fd',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    marginBottom: 16,
+    gap: 8,
+  },
+  locationIcon: {
+    fontSize: 16,
+  },
+  locationText: {
+    fontSize: 14,
+    color: '#1565c0',
+    fontWeight: '500',
+    flexShrink: 1,
   },
   statusBox: {
     alignItems: 'center',
