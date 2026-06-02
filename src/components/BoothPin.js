@@ -20,24 +20,22 @@ export default function BoothPin({ booth, hasStamp, onPress }) {
 
 const styles = StyleSheet.create({
   pinContainer: {
-    position: 'absolute',
     alignItems: 'center',
-    transform: [{ translateX: -22 }, { translateY: -40 }],
     zIndex: 10,
   },
   pin: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: '#e74c3c',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 3,
+    borderWidth: 2,
     borderColor: '#fff',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.4,
-    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.5,
+    shadowRadius: 4,
     elevation: 6,
   },
   pinStamped: {
@@ -46,19 +44,18 @@ const styles = StyleSheet.create({
   pinText: {
     color: '#fff',
     fontWeight: 'bold',
-    fontSize: 13,
+    fontSize: 12,
   },
   labelContainer: {
-    backgroundColor: 'rgba(0,0,0,0.8)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-    marginTop: 6,
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginTop: 4,
   },
   label: {
     color: '#fff',
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
-    letterSpacing: 0.3,
   },
 });
