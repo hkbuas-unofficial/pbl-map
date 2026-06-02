@@ -7,7 +7,6 @@ import {
   Image,
   TouchableOpacity,
   Animated,
-  ScrollView,
 } from 'react-native';
 import BoothPin from '../components/BoothPin';
 import BoothDetailModal from '../components/BoothDetailModal';
@@ -65,11 +64,16 @@ export default function MapScreen({ appData, navigation }) {
   const applyTransform = useCallback((newScale, newTranslateX, newTranslateY) => {
     const scaledW = MAP_IMG_W * newScale;
     const scaledH = MAP_IMG_H * newScale;
-    const maxOffsetX = Math.max(0, (scaledW - MAP_AREA_W) / 2);
-    const maxOffsetY = Math.max(0, (scaledH - MAP_AREA_H) / 2);
+    // Allow dragging to see the full map edges
+    const maxOffsetX = Math.max(0, (scaledW - MAP_AREA_W) / 2 + Math.abs(newTranslateX));
+    const maxOffsetY = Math.max(0, (scaledH - MAP_AREA_H) / 2 + Math.abs(newTranslateY));
 
-    const constrainedX = Math.max(-maxOffsetX, Math.min(maxOffsetX, newTranslateX));
-    const constrainedY = Math.max(-maxOffsetY, Math.min(maxOffsetY, newTranslateY));
+    // More permissive constraints - allow viewing edges
+    const halfW = Math.max(0, (scaledW - MAP_AREA_W) / 2);
+    const halfH = Math.max(0, (scaledH - MAP_AREA_H) / 2);
+
+    const constrainedX = Math.max(-halfW - 100, Math.min(halfW + 100, newTranslateX));
+    const constrainedY = Math.max(-halfH - 100, Math.min(halfH + 100, newTranslateY));
 
     setScale(newScale);
     setTranslateX(constrainedX);
@@ -86,7 +90,6 @@ export default function MapScreen({ appData, navigation }) {
     const el = mapRef.current;
     if (!el) return;
 
-    // Need to access the DOM node for wheel events
     const domNode = el._reactInternalFiber?.stateNode || el;
     const target = domNode && domNode.nodeType ? domNode : el;
 
@@ -94,7 +97,7 @@ export default function MapScreen({ appData, navigation }) {
       e.preventDefault();
       const delta = -e.deltaY * 0.001;
       const currentScale = scaleRef.current;
-      const newScale = Math.max(baseScale, Math.min(currentScale * (1 + delta), baseScale * 6));
+      const newScale = Math.max(baseScale * 0.5, Math.min(currentScale * (1 + delta), baseScale * 8));
 
       const rect = target.getBoundingClientRect ? target.getBoundingClientRect() : { left: 0, top: 0, width: MAP_AREA_W, height: MAP_AREA_H };
       const mouseX = e.clientX - rect.left - rect.width / 2;
@@ -108,7 +111,7 @@ export default function MapScreen({ appData, navigation }) {
     };
 
     const handleMouseDown = (e) => {
-      if (scaleRef.current <= baseScale) return;
+      if (scaleRef.current <= baseScale * 0.95) return;
       isDraggingRef.current = true;
       dragStartRef.current = {
         x: e.clientX - translateRef.current.x,
@@ -129,7 +132,6 @@ export default function MapScreen({ appData, navigation }) {
       target.style.cursor = 'grab';
     };
 
-    // Use the View's DOM element via ref
     const container = target;
     container.addEventListener('wheel', handleWheel, { passive: false });
     container.addEventListener('mousedown', handleMouseDown);
@@ -164,6 +166,16 @@ export default function MapScreen({ appData, navigation }) {
   const stampCount = getStampCount();
   const totalBooths = booths.length;
 
+  // Pins are rendered OUTSIDE the zoom transform so they stay fixed size
+  // We calculate their screen position based on map transform
+  const getPinScreenPos = (booth) => {
+    const mapX = (booth.booth_x / 100) * MAP_IMG_W;
+    const mapY = (booth.booth_y / 100) * MAP_IMG_H;
+    const screenX = mapX * scale + translateX + MAP_AREA_W / 2 - MAP_IMG_W * scale / 2;
+    const screenY = mapY * scale + translateY + MAP_AREA_H / 2 - MAP_IMG_H * scale / 2;
+    return { x: screenX, y: screenY };
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -172,11 +184,12 @@ export default function MapScreen({ appData, navigation }) {
       </View>
 
       <View style={styles.mapWrapper}>
+        {/* Map container with zoomable image */}
         <View
           ref={mapRef}
           style={[
             styles.mapContainer,
-            { cursor: scale > baseScale ? 'grab' : 'default' },
+            { cursor: scale > baseScale * 0.95 ? 'grab' : 'default' },
           ]}
         >
           <Animated.View
@@ -201,17 +214,28 @@ export default function MapScreen({ appData, navigation }) {
               }}
               resizeMode="stretch"
             />
+          </Animated.View>
+        </View>
 
-            {booths.map((booth) => (
+        {/* Pins rendered as overlay - fixed size, not affected by zoom */}
+        <View style={styles.pinsOverlay} pointerEvents="box-none">
+          {booths.map((booth) => {
+            const pos = getPinScreenPos(booth);
+            // Only show pins that are within or near the visible area
+            if (pos.x < -80 || pos.x > MAP_AREA_W + 80 || pos.y < -80 || pos.y > MAP_AREA_H + 80) {
+              return null;
+            }
+            return (
               <View
                 key={booth.booth_id}
                 style={[
-                  styles.pinWrapper,
+                  styles.pinContainer,
                   {
-                    left: `${booth.booth_x}%`,
-                    top: `${booth.booth_y}%`,
+                    left: pos.x,
+                    top: pos.y,
                   },
                 ]}
+                pointerEvents="auto"
               >
                 <BoothPin
                   booth={booth}
@@ -219,8 +243,8 @@ export default function MapScreen({ appData, navigation }) {
                   onPress={() => handlePinPress(booth)}
                 />
               </View>
-            ))}
-          </Animated.View>
+            );
+          })}
         </View>
 
         {/* Stats overlay - bottom right */}
@@ -240,8 +264,6 @@ export default function MapScreen({ appData, navigation }) {
           <Text style={styles.zoomBtnText}>⟲</Text>
         </TouchableOpacity>
       </View>
-
-
 
       <BoothDetailModal
         visible={detailVisible}
@@ -296,9 +318,17 @@ const styles = StyleSheet.create({
   zoomableContent: {
     position: 'relative',
   },
-  pinWrapper: {
+  pinsOverlay: {
     position: 'absolute',
-    transform: [{ translateX: -20 }, { translateY: -35 }],
+    top: 0,
+    left: 0,
+    width: MAP_AREA_W,
+    height: MAP_AREA_H,
+    overflow: 'hidden',
+  },
+  pinContainer: {
+    position: 'absolute',
+    transform: [{ translateX: -60 }, { translateY: -105 }],
   },
   statsOverlay: {
     position: 'absolute',
@@ -345,5 +375,4 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
   },
-
 });
