@@ -1,4 +1,5 @@
 {
+  "homepage": "https://hkbuas-unofficial.github.io/pbl-map",
   "name": "pbl_map",
   "version": "1.0.0",
   "main": "index.js",
@@ -26,10 +27,13 @@
     "xlsx": "^0.18.5"
   },
   "scripts": {
+    "predeploy": "expo export --platform web",
+    "deploy": "gh-pages -d dist",
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
     "web": "expo start --web"
   },
-  "private": true
+  "private": true,
+  "devDependencies": {
+    "gh-pages": "^6.3.0"
+  }
 }
