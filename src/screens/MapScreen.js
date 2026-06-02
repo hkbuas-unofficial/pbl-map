@@ -14,7 +14,7 @@ import BoothDetailModal from '../components/BoothDetailModal';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
-const HEADER_H = 85;
+const HEADER_H = 55;
 const MAP_AREA_W = SCREEN_W;
 const MAP_AREA_H = SCREEN_H - HEADER_H;
 
@@ -262,10 +262,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#000',
   },
   header: {
-    height: 85,
-    paddingTop: 45,
-    paddingHorizontal: 20,
-    paddingBottom: 10,
+    height: 55,
+    paddingTop: 12,
+    paddingHorizontal: 16,
+    paddingBottom: 8,
     backgroundColor: '#000',
     borderBottomWidth: 1,
     borderBottomColor: '#222',
