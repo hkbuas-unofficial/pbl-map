@@ -7,13 +7,8 @@ import {
   Image,
   TouchableOpacity,
   Animated,
-  Platform,
+  ScrollView,
 } from 'react-native';
-import {
-  GestureHandlerRootView,
-  PanGestureHandler,
-  PinchGestureHandler,
-} from 'react-native-gesture-handler';
 import BoothPin from '../components/BoothPin';
 import BoothDetailModal from '../components/BoothDetailModal';
 
@@ -24,30 +19,16 @@ const LEGEND_H = 45;
 const MAP_AREA_W = SCREEN_W;
 const MAP_AREA_H = SCREEN_H - HEADER_H - LEGEND_H;
 
-// Mouse wheel zoom sensitivity
-const WHEEL_SENSITIVITY = 0.001;
+// Known map image dimensions - adjust if your map is different
+// Using a reasonable default; on web we'll detect actual size
+const MAP_IMG_W = 1200;
+const MAP_IMG_H = 1600;
 
 export default function MapScreen({ appData, navigation }) {
   const { booths, hasStamp, isLockedOut, getRemainingAttempts, getStampCount } = appData;
 
   const [selectedBooth, setSelectedBooth] = useState(null);
   const [detailVisible, setDetailVisible] = useState(false);
-  const [imageSize, setImageSize] = useState({ width: 1, height: 1 });
-
-  const mapContainerRef = useRef(null);
-  const [containerLayout, setContainerLayout] = useState({ x: 0, y: 0 });
-
-  // Zoom/pan state
-  const [baseScale, setBaseScale] = useState(1);
-  const [scale, setScale] = useState(1);
-  const [translateX, setTranslateX] = useState(0);
-  const [translateY, setTranslateY] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-  const translateXAnim = useRef(new Animated.Value(0)).current;
-  const translateYAnim = useRef(new Animated.Value(0)).current;
 
   // Calculate initial scale so entire map fits in view
   const getInitialScale = useCallback((imgW, imgH) => {
@@ -56,29 +37,36 @@ export default function MapScreen({ appData, navigation }) {
     return Math.min(scaleX, scaleY);
   }, []);
 
-  // Get image dimensions on load
-  useEffect(() => {
-    const img = Image.resolveAssetSource(require('../../assets/map/venue_map.jpg'));
-    const initScale = getInitialScale(img.width, img.height);
-    setImageSize({ width: img.width, height: img.height });
-    setBaseScale(initScale);
-    setScale(initScale);
-    scaleAnim.setValue(initScale);
-  }, [getInitialScale, scaleAnim]);
+  // Zoom/pan state
+  const [baseScale, setBaseScale] = useState(() => getInitialScale(MAP_IMG_W, MAP_IMG_H));
+  const [scale, setScale] = useState(() => getInitialScale(MAP_IMG_W, MAP_IMG_H));
+  const [translateX, setTranslateX] = useState(0);
+  const [translateY, setTranslateY] = useState(0);
 
-  // Measure container position for mouse events
-  const onContainerLayout = useCallback(() => {
-    if (mapContainerRef.current) {
-      mapContainerRef.current.measure((x, y, width, height, pageX, pageY) => {
-        setContainerLayout({ x: pageX, y: pageY });
-      });
-    }
-  }, []);
+  const scaleAnim = useRef(new Animated.Value(getInitialScale(MAP_IMG_W, MAP_IMG_H))).current;
+  const translateXAnim = useRef(new Animated.Value(0)).current;
+  const translateYAnim = useRef(new Animated.Value(0)).current;
+
+  // Web-specific refs for mouse events
+  const mapRef = useRef(null);
+  const isDraggingRef = useRef(false);
+  const dragStartRef = useRef({ x: 0, y: 0 });
+  const translateRef = useRef({ x: 0, y: 0 });
+  const scaleRef = useRef(getInitialScale(MAP_IMG_W, MAP_IMG_H));
+
+  // Keep refs in sync with state
+  useEffect(() => {
+    translateRef.current = { x: translateX, y: translateY };
+  }, [translateX, translateY]);
+
+  useEffect(() => {
+    scaleRef.current = scale;
+  }, [scale]);
 
   // Apply constrained transform
   const applyTransform = useCallback((newScale, newTranslateX, newTranslateY) => {
-    const scaledW = imageSize.width * newScale;
-    const scaledH = imageSize.height * newScale;
+    const scaledW = MAP_IMG_W * newScale;
+    const scaledH = MAP_IMG_H * newScale;
     const maxOffsetX = Math.max(0, (scaledW - MAP_AREA_W) / 2);
     const maxOffsetY = Math.max(0, (scaledH - MAP_AREA_H) / 2);
 
@@ -93,72 +81,70 @@ export default function MapScreen({ appData, navigation }) {
     translateYAnim.setValue(constrainedY);
 
     return { x: constrainedX, y: constrainedY };
-  }, [imageSize, scaleAnim, translateXAnim, translateYAnim]);
+  }, [scaleAnim, translateXAnim, translateYAnim]);
 
-  // Mouse wheel zoom
-  const handleWheel = useCallback((e) => {
-    e.preventDefault();
-    const delta = -e.deltaY * WHEEL_SENSITIVITY;
-    const newScale = Math.max(baseScale, Math.min(scale * (1 + delta), baseScale * 6));
-    
-    // Zoom towards mouse pointer
-    const rect = e.currentTarget.getBoundingClientRect();
-    const mouseX = e.clientX - rect.left - MAP_AREA_W / 2;
-    const mouseY = e.clientY - rect.top - MAP_AREA_H / 2;
+  // Web mouse wheel zoom
+  useEffect(() => {
+    const el = mapRef.current;
+    if (!el) return;
 
-    const scaleRatio = newScale / scale;
-    const newTranslateX = mouseX - (mouseX - translateX) * scaleRatio;
-    const newTranslateY = mouseY - (mouseY - translateY) * scaleRatio;
+    // Need to access the DOM node for wheel events
+    const domNode = el._reactInternalFiber?.stateNode || el;
+    const target = domNode && domNode.nodeType ? domNode : el;
 
-    applyTransform(newScale, newTranslateX, newTranslateY);
-  }, [scale, translateX, translateY, baseScale, applyTransform]);
+    const handleWheel = (e) => {
+      e.preventDefault();
+      const delta = -e.deltaY * 0.001;
+      const currentScale = scaleRef.current;
+      const newScale = Math.max(baseScale, Math.min(currentScale * (1 + delta), baseScale * 6));
 
-  // Mouse drag start
-  const handleMouseDown = useCallback((e) => {
-    if (scale <= baseScale) return;
-    setIsDragging(true);
-    setDragStart({ x: e.clientX - translateX, y: e.clientY - translateY });
-  }, [scale, baseScale, translateX, translateY]);
+      const rect = target.getBoundingClientRect ? target.getBoundingClientRect() : { left: 0, top: 0, width: MAP_AREA_W, height: MAP_AREA_H };
+      const mouseX = e.clientX - rect.left - rect.width / 2;
+      const mouseY = e.clientY - rect.top - rect.height / 2;
 
-  // Mouse drag move
-  const handleMouseMove = useCallback((e) => {
-    if (!isDragging) return;
-    const newX = e.clientX - dragStart.x;
-    const newY = e.clientY - dragStart.y;
-    applyTransform(scale, newX, newY);
-  }, [isDragging, dragStart, scale, applyTransform]);
+      const scaleRatio = newScale / currentScale;
+      const newTranslateX = mouseX - (mouseX - translateRef.current.x) * scaleRatio;
+      const newTranslateY = mouseY - (mouseY - translateRef.current.y) * scaleRatio;
 
-  // Mouse drag end
-  const handleMouseUp = useCallback(() => {
-    setIsDragging(false);
-  }, []);
+      applyTransform(newScale, newTranslateX, newTranslateY);
+    };
 
-  // Touch/mouse pinch-to-zoom handlers
-  const onPinchEvent = Animated.event(
-    [{ nativeEvent: { scale: scaleAnim } }],
-    { useNativeDriver: true }
-  );
+    const handleMouseDown = (e) => {
+      if (scaleRef.current <= baseScale) return;
+      isDraggingRef.current = true;
+      dragStartRef.current = {
+        x: e.clientX - translateRef.current.x,
+        y: e.clientY - translateRef.current.y,
+      };
+      target.style.cursor = 'grabbing';
+    };
 
-  const onPinchStateChange = useCallback((event) => {
-    if (event.nativeEvent.oldState === 4) {
-      const pinchScale = event.nativeEvent.scale;
-      const newScale = Math.max(baseScale, Math.min(scale * pinchScale, baseScale * 6));
-      applyTransform(newScale, translateX, translateY);
-    }
-  }, [scale, baseScale, translateX, translateY, applyTransform]);
+    const handleMouseMove = (e) => {
+      if (!isDraggingRef.current) return;
+      const newX = e.clientX - dragStartRef.current.x;
+      const newY = e.clientY - dragStartRef.current.y;
+      applyTransform(scaleRef.current, newX, newY);
+    };
 
-  const onPanEvent = Animated.event(
-    [{ nativeEvent: { translationX: translateXAnim, translationY: translateYAnim } }],
-    { useNativeDriver: true }
-  );
+    const handleMouseUp = () => {
+      isDraggingRef.current = false;
+      target.style.cursor = 'grab';
+    };
 
-  const onPanStateChange = useCallback((event) => {
-    if (event.nativeEvent.oldState === 4) {
-      const newX = translateX + event.nativeEvent.translationX;
-      const newY = translateY + event.nativeEvent.translationY;
-      applyTransform(scale, newX, newY);
-    }
-  }, [translateX, translateY, scale, applyTransform]);
+    // Use the View's DOM element via ref
+    const container = target;
+    container.addEventListener('wheel', handleWheel, { passive: false });
+    container.addEventListener('mousedown', handleMouseDown);
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      container.removeEventListener('wheel', handleWheel);
+      container.removeEventListener('mousedown', handleMouseDown);
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [baseScale, applyTransform]);
 
   // Reset zoom to fit
   const handleResetZoom = () => {
@@ -184,84 +170,60 @@ export default function MapScreen({ appData, navigation }) {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>PBL e-map</Text>
-        <Text style={styles.subtitle}>Scroll/pinch to zoom • Drag to pan • Tap a booth</Text>
+        <Text style={styles.subtitle}>Scroll to zoom • Drag to pan • Tap a booth</Text>
       </View>
 
-      <GestureHandlerRootView style={styles.mapWrapper}>
-        <PinchGestureHandler
-          onGestureEvent={onPinchEvent}
-          onHandlerStateChange={onPinchStateChange}
+      <View style={styles.mapWrapper}>
+        <View
+          ref={mapRef}
+          style={[
+            styles.mapContainer,
+            { cursor: scale > baseScale ? 'grab' : 'default' },
+          ]}
         >
-          <Animated.View style={styles.pinchContainer}>
-            <PanGestureHandler
-              onGestureEvent={onPanEvent}
-              onHandlerStateChange={onPanStateChange}
-              enabled={scale > baseScale}
-            >
-              <Animated.View
-                style={styles.mapContainer}
-                ref={mapContainerRef}
-                onLayout={onContainerLayout}
+          <Animated.View
+            style={[
+              styles.zoomableContent,
+              {
+                width: MAP_IMG_W,
+                height: MAP_IMG_H,
+                transform: [
+                  { scale: scaleAnim },
+                  { translateX: translateXAnim },
+                  { translateY: translateYAnim },
+                ],
+              },
+            ]}
+          >
+            <Image
+              source={require('../../assets/map/venue_map.jpg')}
+              style={{
+                width: MAP_IMG_W,
+                height: MAP_IMG_H,
+              }}
+              resizeMode="stretch"
+            />
+
+            {booths.map((booth) => (
+              <View
+                key={booth.booth_id}
+                style={[
+                  styles.pinWrapper,
+                  {
+                    left: `${booth.booth_x}%`,
+                    top: `${booth.booth_y}%`,
+                  },
+                ]}
               >
-                {/* Mouse event overlay for web */}
-                {Platform.OS === 'web' && (
-                  <View
-                    style={StyleSheet.absoluteFillObject}
-                    onWheel={handleWheel}
-                    onMouseDown={handleMouseDown}
-                    onMouseMove={handleMouseMove}
-                    onMouseUp={handleMouseUp}
-                    onMouseLeave={handleMouseUp}
-                    pointerEvents="box-none"
-                  />
-                )}
-
-                <Animated.View
-                  style={[
-                    styles.zoomableContent,
-                    {
-                      width: imageSize.width,
-                      height: imageSize.height,
-                      transform: [
-                        { scale: scaleAnim },
-                        { translateX: translateXAnim },
-                        { translateY: translateYAnim },
-                      ],
-                    },
-                  ]}
-                >
-                  <Image
-                    source={require('../../assets/map/venue_map.jpg')}
-                    style={{
-                      width: imageSize.width,
-                      height: imageSize.height,
-                    }}
-                    resizeMode="stretch"
-                  />
-
-                  {booths.map((booth) => (
-                    <View
-                      key={booth.booth_id}
-                      style={[
-                        styles.pinWrapper,
-                        {
-                          left: `${booth.booth_x}%`,
-                          top: `${booth.booth_y}%`,
-                        },
-                      ]}
-                    >
-                      <BoothPin
-                        booth={booth}
-                        hasStamp={hasStamp(booth.booth_id)}
-                        onPress={() => handlePinPress(booth)}
-                      />
-                    </View>
-                  ))}
-                </Animated.View>
-              </Animated.View>
-            </PanGestureHandler>
+                <BoothPin
+                  booth={booth}
+                  hasStamp={hasStamp(booth.booth_id)}
+                  onPress={() => handlePinPress(booth)}
+                />
+              </View>
+            ))}
           </Animated.View>
-        </PinchGestureHandler>
+        </View>
 
         {/* Stats overlay - bottom right */}
         <View style={styles.statsOverlay}>
@@ -279,7 +241,7 @@ export default function MapScreen({ appData, navigation }) {
         <TouchableOpacity style={styles.zoomBtn} onPress={handleResetZoom}>
           <Text style={styles.zoomBtnText}>⟲</Text>
         </TouchableOpacity>
-      </GestureHandlerRootView>
+      </View>
 
       {/* Legend */}
       <View style={styles.legend}>
@@ -340,18 +302,12 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     position: 'relative',
   },
-  pinchContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   mapContainer: {
     width: MAP_AREA_W,
     height: MAP_AREA_H,
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
-    cursor: 'grab',
   },
   zoomableContent: {
     position: 'relative',
