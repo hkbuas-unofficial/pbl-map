@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -10,64 +10,34 @@ import {
 } from 'react-native';
 import BoothPin from '../components/BoothPin';
 import BoothDetailModal from '../components/BoothDetailModal';
-import QuizModal from '../components/QuizModal';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const MAP_WIDTH = SCREEN_WIDTH - 32;
-const MAP_HEIGHT = MAP_WIDTH * 1.3; // Aspect ratio
+const MAP_HEIGHT = MAP_WIDTH * 1.3;
 
-export default function MapScreen({ appData }) {
-  const { booths, hasStamp, isLockedOut, getRemainingAttempts, canAttempt, addStamp, incrementAttempt, getRandomQuestion } = appData;
+export default function MapScreen({ appData, navigation }) {
+  const { booths, hasStamp, isLockedOut, getRemainingAttempts } = appData;
 
   const [selectedBooth, setSelectedBooth] = useState(null);
   const [detailVisible, setDetailVisible] = useState(false);
-  const [quizVisible, setQuizVisible] = useState(false);
-  const [quizBooth, setQuizBooth] = useState(null);
-  const [quizRemaining, setQuizRemaining] = useState(0);
 
   const handlePinPress = (booth) => {
     setSelectedBooth(booth);
     setDetailVisible(true);
   };
 
-  const handleScanQR = () => {
+  const handleGoToScan = () => {
     setDetailVisible(false);
-    // Simulate QR scan - in real app this would open camera
-    // For demo, we directly open quiz
-    if (selectedBooth && canAttempt(selectedBooth.booth_id)) {
-      setQuizBooth(selectedBooth);
-      setQuizRemaining(getRemainingAttempts(selectedBooth.booth_id));
-      setQuizVisible(true);
+    // Navigate to Scan tab
+    if (navigation && navigation.navigate) {
+      navigation.navigate('Scan');
     }
   };
 
-  const handleQuizAnswer = async (isCorrect) => {
-    if (!quizBooth) return;
-    const boothId = quizBooth.booth_id;
-
-    if (isCorrect) {
-      await addStamp(boothId);
-    } else {
-      const newAttemptCount = await incrementAttempt(boothId);
-      setQuizRemaining(5 - newAttemptCount);
-    }
-  };
-
-  const handleQuizClose = () => {
-    setQuizVisible(false);
-    setQuizBooth(null);
-    // Refresh selected booth data
-    if (selectedBooth) {
-      setSelectedBooth({ ...selectedBooth });
-    }
-  };
-
-  // Demo: Use a placeholder map background
-  // Replace require('../../assets/map/venue_map.png') with your actual map
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Event Map</Text>
+        <Text style={styles.title}>PBL e-map</Text>
         <Text style={styles.subtitle}>Tap a booth to explore</Text>
       </View>
 
@@ -77,24 +47,11 @@ export default function MapScreen({ appData }) {
         showsVerticalScrollIndicator={true}
       >
         <View style={[styles.mapContainer, { width: MAP_WIDTH, height: MAP_HEIGHT }]}>
-          {/* Placeholder map background - replace with your uploaded map */}
-          <View style={styles.mapPlaceholder}>
-            <Text style={styles.mapPlaceholderText}>🗺️</Text>
-            <Text style={styles.mapPlaceholderLabel}>Venue Map</Text>
-            <Text style={styles.mapPlaceholderSub}>
-              Upload your map to assets/map/venue_map.png
-            </Text>
-            
-            {/* Grid lines for reference */}
-            <View style={styles.gridOverlay}>
-              {Array.from({ length: 10 }).map((_, i) => (
-                <View key={`v${i}`} style={[styles.gridLineV, { left: `${i * 10}%` }]} />
-              ))}
-              {Array.from({ length: 13 }).map((_, i) => (
-                <View key={`h${i}`} style={[styles.gridLineH, { top: `${i * 10}%` }]} />
-              ))}
-            </View>
-          </View>
+          <Image
+            source={require('../../assets/map/venue_map.jpg')}
+            style={{ width: '100%', height: '100%' }}
+            resizeMode="contain"
+          />
 
           {/* Booth Pins */}
           {booths.map((booth) => (
@@ -118,6 +75,10 @@ export default function MapScreen({ appData }) {
           <View style={[styles.legendDot, { backgroundColor: '#27ae60' }]} />
           <Text style={styles.legendText}>Stamped</Text>
         </View>
+        <View style={styles.legendItem}>
+          <View style={[styles.legendDot, { backgroundColor: '#888' }]} />
+          <Text style={styles.legendText}>Locked</Text>
+        </View>
       </View>
 
       {/* Modals */}
@@ -128,15 +89,7 @@ export default function MapScreen({ appData }) {
         remainingAttempts={selectedBooth ? getRemainingAttempts(selectedBooth.booth_id) : 0}
         isLockedOut={selectedBooth ? isLockedOut(selectedBooth.booth_id) : false}
         onClose={() => setDetailVisible(false)}
-        onScanQR={handleScanQR}
-      />
-
-      <QuizModal
-        visible={quizVisible}
-        booth={quizBooth}
-        onClose={handleQuizClose}
-        onAnswer={handleQuizAnswer}
-        remainingAttempts={quizRemaining}
+        onScanQR={handleGoToScan}
       />
     </View>
   );
@@ -174,14 +127,14 @@ const styles = StyleSheet.create({
   },
   mapContainer: {
     position: 'relative',
-    borderRadius: 16,
+    borderRadius: 20,
     overflow: 'hidden',
     backgroundColor: '#e8e8e8',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 10,
   },
   mapPlaceholder: {
     flex: 1,
@@ -225,7 +178,7 @@ const styles = StyleSheet.create({
   legend: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 24,
+    gap: 20,
     paddingVertical: 12,
     backgroundColor: '#fff',
     borderTopWidth: 1,

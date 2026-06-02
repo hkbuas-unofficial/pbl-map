@@ -14,6 +14,8 @@ export default function BoothPin({ booth, hasStamp, onPress }) {
       <View style={[styles.pin, hasStamp && styles.pinStamped]}>
         <Text style={styles.pinText}>{hasStamp ? '✓' : booth.booth_id}</Text>
       </View>
+      {/* Pulse ring for unvisited */}
+      {!hasStamp && <View style={styles.pulseRing} />}
       <View style={styles.labelContainer}>
         <Text style={styles.label}>{booth.booth_name}</Text>
       </View>
@@ -25,23 +27,24 @@ const styles = StyleSheet.create({
   pinContainer: {
     position: 'absolute',
     alignItems: 'center',
-    transform: [{ translateX: -20 }, { translateY: -40 }],
+    transform: [{ translateX: -22 }, { translateY: -44 }],
     zIndex: 10,
   },
   pin: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: '#e74c3c',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 3,
     borderColor: '#fff',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 5,
+    elevation: 6,
+    zIndex: 2,
   },
   pinStamped: {
     backgroundColor: '#27ae60',
@@ -49,18 +52,34 @@ const styles = StyleSheet.create({
   pinText: {
     color: '#fff',
     fontWeight: 'bold',
-    fontSize: 14,
+    fontSize: 13,
+  },
+  pulseRing: {
+    position: 'absolute',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 2,
+    borderColor: '#e74c3c',
+    opacity: 0.4,
+    zIndex: 1,
   },
   labelContainer: {
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 4,
-    marginTop: 4,
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginTop: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
   },
   label: {
     color: '#fff',
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
 });

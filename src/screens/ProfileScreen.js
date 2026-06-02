@@ -19,34 +19,29 @@ export default function ProfileScreen({ appData }) {
       </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        {/* Avatar */}
-        <View style={styles.avatarSection}>
+        {/* Avatar Card */}
+        <View style={styles.avatarCard}>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>👤</Text>
           </View>
           <Text style={styles.avatarName}>Event Participant</Text>
           <Text style={styles.avatarSub}>Keep collecting stamps!</Text>
-        </View>
-
-        {/* Stats Grid */}
-        <View style={styles.statsGrid}>
-          <View style={styles.statCard}>
-            <Text style={styles.statNumber}>{stampCount}</Text>
-            <Text style={styles.statLabel}>Stamps</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statNumber}>{redemptions}</Text>
-            <Text style={styles.statLabel}>Redeemed</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statNumber}>{booths.length}</Text>
-            <Text style={styles.statLabel}>Total Booths</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statNumber}>
-              {Math.round((stampCount / Math.max(booths.length, 1)) * 100)}%
-            </Text>
-            <Text style={styles.statLabel}>Completion</Text>
+          
+          <View style={styles.miniStats}>
+            <View style={styles.miniStat}>
+              <Text style={styles.miniStatNum}>{stampCount}</Text>
+              <Text style={styles.miniStatLabel}>Stamps</Text>
+            </View>
+            <View style={styles.miniStatDivider} />
+            <View style={styles.miniStat}>
+              <Text style={styles.miniStatNum}>{redemptions}</Text>
+              <Text style={styles.miniStatLabel}>Redeemed</Text>
+            </View>
+            <View style={styles.miniStatDivider} />
+            <View style={styles.miniStat}>
+              <Text style={styles.miniStatNum}>{Math.round((stampCount / Math.max(booths.length, 1)) * 100)}%</Text>
+              <Text style={styles.miniStatLabel}>Done</Text>
+            </View>
           </View>
         </View>
 
@@ -54,43 +49,23 @@ export default function ProfileScreen({ appData }) {
         <View style={styles.rulesCard}>
           <Text style={styles.rulesTitle}>📋 Event Rules</Text>
           
-          <View style={styles.ruleItem}>
-            <Text style={styles.ruleNumber}>1</Text>
-            <Text style={styles.ruleText}>
-              Visit booths and scan their QR codes to earn stamps.
-            </Text>
-          </View>
-          
-          <View style={styles.ruleItem}>
-            <Text style={styles.ruleNumber}>2</Text>
-            <Text style={styles.ruleText}>
-              Answer a quiz question correctly to earn 1 stamp per booth.
-            </Text>
-          </View>
-          
-          <View style={styles.ruleItem}>
-            <Text style={styles.ruleNumber}>3</Text>
-            <Text style={styles.ruleText}>
-              You have {MAX_ATTEMPTS_PER_BOOTH} attempts per booth. Fail all and you're locked out.
-            </Text>
-          </View>
-          
-          <View style={styles.ruleItem}>
-            <Text style={styles.ruleNumber}>4</Text>
-            <Text style={styles.ruleText}>
-              Collect {REDEMPTION_THRESHOLD}+ stamps to redeem souvenirs.
-            </Text>
-          </View>
-          
-          <View style={styles.ruleItem}>
-            <Text style={styles.ruleNumber}>5</Text>
-            <Text style={styles.ruleText}>
-              Each redemption costs {REDEMPTION_COST} stamps. Leftover stamps carry over!
-            </Text>
-          </View>
+          {[
+            'Visit booths and scan their QR codes to earn stamps.',
+            'Answer a quiz question correctly to earn 1 stamp per booth.',
+            `You have ${MAX_ATTEMPTS_PER_BOOTH} attempts per booth. Fail all and you're locked out.`,
+            `Collect ${REDEMPTION_THRESHOLD}+ stamps to redeem souvenirs.`,
+            `Each redemption costs ${REDEMPTION_COST} stamps. Leftover stamps carry over!`,
+          ].map((rule, i) => (
+            <View key={i} style={styles.ruleItem}>
+              <View style={styles.ruleNumber}>
+                <Text style={styles.ruleNumberText}>{i + 1}</Text>
+              </View>
+              <Text style={styles.ruleText}>{rule}</Text>
+            </View>
+          ))}
         </View>
 
-        {/* Booth Attempts Detail */}
+        {/* Booth Status Detail */}
         <Text style={styles.sectionTitle}>Booth Status</Text>
         {booths.map((booth) => {
           const stamped = !!stamps[booth.booth_id];
@@ -100,17 +75,28 @@ export default function ProfileScreen({ appData }) {
           return (
             <View key={booth.booth_id} style={styles.boothRow}>
               <View style={styles.boothRowLeft}>
-                <Text style={styles.boothRowId}>{booth.booth_id}</Text>
-                <Text style={styles.boothRowName}>{booth.booth_name}</Text>
+                <View style={[
+                  styles.boothRowDot,
+                  stamped && { backgroundColor: '#27ae60' },
+                  locked && { backgroundColor: '#e74c3c' },
+                ]} />
+                <View>
+                  <Text style={styles.boothRowId}>Booth {booth.booth_id}</Text>
+                  <Text style={styles.boothRowName}>{booth.booth_name}</Text>
+                </View>
               </View>
               <View style={styles.boothRowRight}>
                 {stamped ? (
-                  <Text style={styles.boothRowStamped}>✓ Stamped</Text>
+                  <View style={styles.statusBadgeGreen}>
+                    <Text style={styles.statusBadgeTextGreen}>✓ Stamped</Text>
+                  </View>
                 ) : locked ? (
-                  <Text style={styles.boothRowLocked}>🔒 Locked</Text>
+                  <View style={styles.statusBadgeRed}>
+                    <Text style={styles.statusBadgeTextRed}>🔒 Locked</Text>
+                  </View>
                 ) : (
                   <Text style={styles.boothRowAttempts}>
-                    {attemptCount}/{MAX_ATTEMPTS_PER_BOOTH} attempts
+                    {attemptCount}/{MAX_ATTEMPTS_PER_BOOTH} tries
                   </Text>
                 )}
               </View>
@@ -152,9 +138,17 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 40,
   },
-  avatarSection: {
+  avatarCard: {
+    backgroundColor: '#fff',
+    borderRadius: 24,
+    padding: 24,
     alignItems: 'center',
-    paddingVertical: 24,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
   },
   avatar: {
     width: 80,
@@ -177,69 +171,71 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#888',
     marginTop: 2,
+    marginBottom: 16,
   },
-  statsGrid: {
+  miniStats: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    marginBottom: 20,
-  },
-  statCard: {
-    width: '47%',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+    width: '100%',
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
   },
-  statNumber: {
-    fontSize: 28,
+  miniStat: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  miniStatDivider: {
+    width: 1,
+    height: 30,
+    backgroundColor: '#e0e0e0',
+  },
+  miniStatNum: {
+    fontSize: 20,
     fontWeight: 'bold',
-    color: '#3498db',
+    color: '#1976d2',
   },
-  statLabel: {
-    fontSize: 13,
+  miniStatLabel: {
+    fontSize: 12,
     color: '#888',
-    marginTop: 4,
+    marginTop: 2,
   },
   rulesCard: {
     backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 20,
+    borderRadius: 24,
+    padding: 24,
+    marginBottom: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   rulesTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 16,
+    marginBottom: 18,
   },
   ruleItem: {
     flexDirection: 'row',
-    marginBottom: 14,
+    marginBottom: 16,
     alignItems: 'flex-start',
   },
   ruleNumber: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: '#3498db',
-    color: '#fff',
-    textAlign: 'center',
-    lineHeight: 24,
-    fontSize: 12,
-    fontWeight: 'bold',
-    marginRight: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
     marginTop: 1,
+  },
+  ruleNumberText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: 'bold',
   },
   ruleText: {
     flex: 1,
@@ -259,38 +255,58 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: '#fff',
-    padding: 12,
-    borderRadius: 10,
+    padding: 14,
+    borderRadius: 14,
     marginBottom: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 1,
   },
   boothRowLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
+  },
+  boothRowDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#f39c12',
   },
   boothRowId: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: 'bold',
     color: '#3498db',
-    backgroundColor: '#e3f2fd',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
   },
   boothRowName: {
     fontSize: 14,
     color: '#333',
+    marginTop: 1,
   },
   boothRowRight: {},
-  boothRowStamped: {
+  statusBadgeGreen: {
+    backgroundColor: '#e8f5e9',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  statusBadgeTextGreen: {
     color: '#27ae60',
     fontWeight: '600',
-    fontSize: 13,
+    fontSize: 12,
   },
-  boothRowLocked: {
+  statusBadgeRed: {
+    backgroundColor: '#ffebee',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  statusBadgeTextRed: {
     color: '#e74c3c',
     fontWeight: '600',
-    fontSize: 13,
+    fontSize: 12,
   },
   boothRowAttempts: {
     color: '#888',

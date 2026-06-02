@@ -29,30 +29,40 @@ export default function BoothDetailModal({
       <View style={styles.overlay}>
         <View style={styles.modal}>
           <ScrollView showsVerticalScrollIndicator={false}>
-            <Text style={styles.boothId}>Booth {booth.booth_id}</Text>
+            {/* Close X */}
+            <TouchableOpacity style={styles.closeX} onPress={onClose}>
+              <Text style={styles.closeXText}>✕</Text>
+            </TouchableOpacity>
+
+            <View style={styles.iconCircle}>
+              <Text style={styles.iconText}>
+                {hasStamp ? '🏆' : isLockedOut ? '🔒' : '📍'}
+              </Text>
+            </View>
+
+            <Text style={styles.boothId}>BOOTH {booth.booth_id}</Text>
             <Text style={styles.boothName}>{booth.booth_name}</Text>
 
             <View style={styles.statusBox}>
               {hasStamp ? (
                 <>
-                  <Text style={styles.statusIcon}>🎉</Text>
-                  <Text style={styles.statusText}>Stamp Collected!</Text>
+                  <View style={[styles.statusDot, { backgroundColor: '#27ae60' }]} />
+                  <Text style={styles.statusText}>Stamp Collected</Text>
+                  <Text style={styles.statusSub}>Great job! You've earned this stamp.</Text>
                 </>
               ) : isLockedOut ? (
                 <>
-                  <Text style={styles.statusIcon}>🔒</Text>
-                  <Text style={[styles.statusText, styles.lockedText]}>
-                    Locked Out
-                  </Text>
-                  <Text style={styles.subText}>
-                    You have used all {5} attempts.
+                  <View style={[styles.statusDot, { backgroundColor: '#e74c3c' }]} />
+                  <Text style={[styles.statusText, styles.lockedText]}>Booth Locked</Text>
+                  <Text style={styles.statusSub}>
+                    All 5 attempts used. Visit other booths!
                   </Text>
                 </>
               ) : (
                 <>
-                  <Text style={styles.statusIcon}>📍</Text>
+                  <View style={[styles.statusDot, { backgroundColor: '#f39c12' }]} />
                   <Text style={styles.statusText}>Not Visited</Text>
-                  <Text style={styles.subText}>
+                  <Text style={styles.statusSub}>
                     {remainingAttempts} attempt{remainingAttempts !== 1 ? 's' : ''} remaining
                   </Text>
                 </>
@@ -61,21 +71,25 @@ export default function BoothDetailModal({
 
             {!hasStamp && !isLockedOut && (
               <TouchableOpacity style={styles.scanBtn} onPress={onScanQR}>
-                <Text style={styles.scanBtnText}>📷 Scan QR Code</Text>
+                <Text style={styles.scanBtnText}>📷 Go Scan QR</Text>
               </TouchableOpacity>
             )}
 
             {hasStamp && (
               <View style={styles.stampedBox}>
                 <Text style={styles.stampedText}>
-                  You have successfully earned a stamp at this booth!
+                  ✓ You have successfully earned a stamp at {booth.booth_name}!
                 </Text>
               </View>
             )}
 
-            <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
-              <Text style={styles.closeBtnText}>Close</Text>
-            </TouchableOpacity>
+            {isLockedOut && (
+              <View style={styles.lockedBox}>
+                <Text style={styles.lockedBoxText}>
+                  🔒 This booth is locked. You can still explore other booths on the map.
+                </Text>
+              </View>
+            )}
           </ScrollView>
         </View>
       </View>
@@ -87,76 +101,105 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
+    justifyContent: 'flex-end',
   },
   modal: {
     backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 24,
-    width: '100%',
-    maxWidth: 400,
-    maxHeight: '80%',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    padding: 28,
+    paddingTop: 20,
+    maxHeight: '75%',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 10,
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 15,
+  },
+  closeX: {
+    alignSelf: 'flex-end',
+    padding: 4,
+  },
+  closeXText: {
+    fontSize: 20,
+    color: '#888',
+    fontWeight: 'bold',
+  },
+  iconCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: '#f5f5f5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  iconText: {
+    fontSize: 36,
   },
   boothId: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#888',
     textTransform: 'uppercase',
-    letterSpacing: 1,
+    letterSpacing: 2,
+    textAlign: 'center',
   },
   boothName: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: 'bold',
     color: '#333',
+    textAlign: 'center',
     marginTop: 4,
     marginBottom: 20,
   },
   statusBox: {
     alignItems: 'center',
-    paddingVertical: 24,
+    paddingVertical: 20,
     backgroundColor: '#f8f9fa',
-    borderRadius: 12,
+    borderRadius: 16,
     marginBottom: 20,
   },
-  statusIcon: {
-    fontSize: 48,
-    marginBottom: 8,
+  statusDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginBottom: 10,
   },
   statusText: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#27ae60',
   },
   lockedText: {
     color: '#e74c3c',
   },
-  subText: {
+  statusSub: {
     fontSize: 14,
     color: '#888',
-    marginTop: 8,
+    marginTop: 6,
   },
   scanBtn: {
     backgroundColor: '#3498db',
-    paddingVertical: 16,
-    borderRadius: 12,
+    paddingVertical: 18,
+    borderRadius: 16,
     alignItems: 'center',
     marginBottom: 12,
+    shadowColor: '#3498db',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   scanBtnText: {
     color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 17,
+    fontWeight: 'bold',
   },
   stampedBox: {
     backgroundColor: '#e8f5e9',
-    padding: 16,
-    borderRadius: 12,
+    padding: 18,
+    borderRadius: 14,
     marginBottom: 12,
   },
   stampedText: {
@@ -165,15 +208,16 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
   },
-  closeBtn: {
-    backgroundColor: '#ecf0f1',
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
+  lockedBox: {
+    backgroundColor: '#ffebee',
+    padding: 18,
+    borderRadius: 14,
+    marginBottom: 12,
   },
-  closeBtnText: {
-    color: '#555',
-    fontSize: 16,
-    fontWeight: '600',
+  lockedBoxText: {
+    color: '#c62828',
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });

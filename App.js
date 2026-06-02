@@ -48,7 +48,7 @@ export default function App() {
             tabBarIcon: ({ focused }) => <TabIcon emoji="🗺️" focused={focused} />,
           }}
         >
-          {() => <MapScreen appData={appData} />}
+          {(props) => <MapScreen {...props} appData={appData} />}
         </Tab.Screen>
         <Tab.Screen
           name="Scan"

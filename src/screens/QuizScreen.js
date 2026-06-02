@@ -1,0 +1,522 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Dimensions,
+  StatusBar,
+  Animated,
+} from 'react-native';
+
+const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
+
+export default function QuizScreen({ booth, onClose, appData }) {
+  const { addStamp, incrementAttempt, hasStamp, getRemainingAttempts } = appData;
+
+  const [currentQuestion, setCurrentQuestion] = useState(null);
+  const [selectedOption, setSelectedOption] = useState(null);
+  const [result, setResult] = useState(null); // 'correct' | 'wrong' | null
+  const [questionHistory, setQuestionHistory] = useState([]);
+  const [attemptNum, setAttemptNum] = useState(1);
+  const [totalAttempts, setTotalAttempts] = useState(0);
+  const [fadeAnim] = useState(new Animated.Value(0));
+  const [slideAnim] = useState(new Animated.Value(50));
+  const [shakeAnim] = useState(new Animated.Value(0));
+
+  const remaining = getRemainingAttempts(booth.booth_id);
+
+  const pickQuestion = useCallback(() => {
+    if (!booth || !booth.questions) return;
+    const availableIndices = booth.questions
+      .map((_, i) => i)
+      .filter(i => !questionHistory.includes(i));
+    
+    const pool = availableIndices.length > 0 ? availableIndices : booth.questions.map((_, i) => i);
+    const randomIdx = pool[Math.floor(Math.random() * pool.length)];
+    
+    setCurrentQuestion({ ...booth.questions[randomIdx], _index: randomIdx });
+    setQuestionHistory(prev => [...prev, randomIdx]);
+  }, [booth, questionHistory]);
+
+  useEffect(() => {
+    setSelectedOption(null);
+    setResult(null);
+    setQuestionHistory([]);
+    setAttemptNum(1);
+    setTotalAttempts(0);
+    pickQuestion();
+    
+    Animated.parallel([
+      Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: 0, duration: 400, useNativeDriver: true }),
+    ]).start();
+  }, [booth]);
+
+  const triggerShake = () => {
+    Animated.sequence([
+      Animated.timing(shakeAnim, { toValue: 10, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -10, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 8, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -8, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 5, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -5, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 0, duration: 50, useNativeDriver: true }),
+    ]).start();
+  };
+
+  const handleSelect = (key) => {
+    if (result) return;
+    setSelectedOption(key);
+  };
+
+  const handleSubmit = async () => {
+    if (!selectedOption || !currentQuestion) return;
+    const isCorrect = selectedOption === currentQuestion.answer;
+    setResult(isCorrect ? 'correct' : 'wrong');
+
+    if (isCorrect) {
+      await addStamp(booth.booth_id);
+    } else {
+      const newCount = await incrementAttempt(booth.booth_id);
+      setTotalAttempts(newCount);
+      triggerShake();
+    }
+  };
+
+  const handleNext = () => {
+    if (result === 'correct') {
+      onClose();
+      return;
+    }
+    const newRemaining = getRemainingAttempts(booth.booth_id);
+    if (newRemaining <= 0) {
+      onClose();
+      return;
+    }
+    // Next question
+    setSelectedOption(null);
+    setResult(null);
+    setAttemptNum(prev => prev + 1);
+    pickQuestion();
+  };
+
+  if (!currentQuestion) return null;
+
+  const optionLabels = { a: 'A', b: 'B', c: 'C', d: 'D' };
+  const optionColors = {
+    a: '#e74c3c',
+    b: '#3498db',
+    c: '#f39c12',
+    d: '#27ae60',
+  };
+
+  return (
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="#1a1a2e" />
+      
+      {/* Background gradient effect */}
+      <View style={styles.bgTop} />
+      <View style={styles.bgBottom} />
+
+      <Animated.View
+        style={[
+          styles.content,
+          {
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }],
+          },
+        ]}
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.boothBadge}>
+            <Text style={styles.boothBadgeText}>{booth.booth_id}</Text>
+          </View>
+          <Text style={styles.boothName}>{booth.booth_name}</Text>
+          <View style={styles.attemptBadge}>
+            <Text style={styles.attemptBadgeText}>
+              Attempt {attemptNum} of 5
+            </Text>
+          </View>
+        </View>
+
+        {/* Question Card */}
+        <Animated.View
+          style={[
+            styles.questionCard,
+            { transform: [{ translateX: shakeAnim }] },
+          ]}
+        >
+          <View style={styles.questionNumber}>
+            <Text style={styles.questionNumberText}>Q</Text>
+          </View>
+          <Text style={styles.questionText}>{currentQuestion.question}</Text>
+        </Animated.View>
+
+        {/* Options */}
+        <View style={styles.optionsContainer}>
+          {Object.entries(currentQuestion.options).map(([key, value], index) => {
+            const color = optionColors[key];
+            let cardStyle = [styles.optionCard, { borderLeftColor: color }];
+            let letterStyle = [styles.optionLetter, { backgroundColor: color }];
+            let textStyle = styles.optionText;
+
+            if (result) {
+              if (key === currentQuestion.answer) {
+                cardStyle = [...cardStyle, styles.optionCorrect];
+                letterStyle = [...letterStyle, styles.optionLetterCorrect];
+              } else if (key === selectedOption && key !== currentQuestion.answer) {
+                cardStyle = [...cardStyle, styles.optionWrong];
+                letterStyle = [...letterStyle, styles.optionLetterWrong];
+              } else {
+                cardStyle = [...cardStyle, styles.optionDimmed];
+              }
+            } else if (key === selectedOption) {
+              cardStyle = [...cardStyle, styles.optionSelected];
+              letterStyle = [...letterStyle, styles.optionLetterSelected];
+              textStyle = styles.optionTextSelected;
+            }
+
+            return (
+              <TouchableOpacity
+                key={key}
+                style={cardStyle}
+                onPress={() => handleSelect(key)}
+                disabled={!!result}
+                activeOpacity={0.7}
+              >
+                <View style={letterStyle}>
+                  <Text style={styles.optionLetterText}>{optionLabels[key]}</Text>
+                </View>
+                <Text style={textStyle}>{value}</Text>
+                {result && key === currentQuestion.answer && (
+                  <Text style={styles.checkMark}>✓</Text>
+                )}
+                {result && key === selectedOption && key !== currentQuestion.answer && (
+                  <Text style={styles.xMark}>✕</Text>
+                )}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {/* Result Area */}
+        {result === 'correct' && (
+          <Animated.View style={styles.resultArea}>
+            <View style={styles.resultIconCircle}>
+              <Text style={styles.resultIcon}>🎉</Text>
+            </View>
+            <Text style={styles.resultTitle}>Correct!</Text>
+            <Text style={styles.resultSub}>Stamp earned for {booth.booth_name}</Text>
+          </Animated.View>
+        )}
+
+        {result === 'wrong' && (
+          <Animated.View style={styles.resultArea}>
+            <View style={[styles.resultIconCircle, styles.resultIconWrong]}>
+              <Text style={styles.resultIcon}>😅</Text>
+            </View>
+            <Text style={[styles.resultTitle, styles.resultTitleWrong]}>Not quite!</Text>
+            {getRemainingAttempts(booth.booth_id) > 0 ? (
+              <Text style={styles.resultSub}>
+                {getRemainingAttempts(booth.booth_id)} attempt{getRemainingAttempts(booth.booth_id) !== 1 ? 's' : ''} remaining
+              </Text>
+            ) : (
+              <Text style={[styles.resultSub, styles.resultSubLocked]}>
+                No more attempts. Booth locked.
+              </Text>
+            )}
+          </Animated.View>
+        )}
+
+        {/* Action Button */}
+        <View style={styles.actionArea}>
+          {!result ? (
+            <TouchableOpacity
+              style={[
+                styles.submitBtn,
+                !selectedOption && styles.submitBtnDisabled,
+              ]}
+              onPress={handleSubmit}
+              disabled={!selectedOption}
+            >
+              <Text style={styles.submitBtnText}>Submit Answer</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={[
+                styles.nextBtn,
+                result === 'wrong' && getRemainingAttempts(booth.booth_id) <= 0 && styles.nextBtnLocked,
+              ]}
+              onPress={handleNext}
+            >
+              <Text style={styles.nextBtnText}>
+                {result === 'correct'
+                  ? 'Collect Stamp →'
+                  : getRemainingAttempts(booth.booth_id) > 0
+                  ? 'Try Another Question'
+                  : 'Close'}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </Animated.View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#1a1a2e',
+  },
+  bgTop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: SCREEN_H * 0.4,
+    backgroundColor: '#16213e',
+    borderBottomLeftRadius: 40,
+    borderBottomRightRadius: 40,
+  },
+  bgBottom: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: SCREEN_H * 0.3,
+    backgroundColor: '#0f3460',
+    borderTopLeftRadius: 40,
+    borderTopRightRadius: 40,
+    opacity: 0.3,
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 24,
+    paddingTop: 50,
+    paddingBottom: 30,
+  },
+  header: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  boothBadge: {
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginBottom: 8,
+  },
+  boothBadgeText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: 'bold',
+    letterSpacing: 1,
+  },
+  boothName: {
+    fontSize: 26,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 10,
+  },
+  attemptBadge: {
+    backgroundColor: 'rgba(243,156,18,0.2)',
+    paddingHorizontal: 14,
+    paddingVertical: 5,
+    borderRadius: 12,
+  },
+  attemptBadgeText: {
+    color: '#f39c12',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  questionCard: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 24,
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 10,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 14,
+  },
+  questionNumber: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: '#3498db',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  questionNumberText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  questionText: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#2c3e50',
+    lineHeight: 26,
+  },
+  optionsContainer: {
+    gap: 12,
+    marginBottom: 20,
+  },
+  optionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    borderLeftWidth: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  optionSelected: {
+    backgroundColor: '#e3f2fd',
+    borderLeftWidth: 4,
+    transform: [{ scale: 1.02 }],
+  },
+  optionCorrect: {
+    backgroundColor: '#e8f5e9',
+    borderLeftColor: '#27ae60',
+  },
+  optionWrong: {
+    backgroundColor: '#ffebee',
+    borderLeftColor: '#e74c3c',
+  },
+  optionDimmed: {
+    opacity: 0.5,
+  },
+  optionLetter: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+  },
+  optionLetterSelected: {
+    transform: [{ scale: 1.1 }],
+  },
+  optionLetterCorrect: {
+    backgroundColor: '#27ae60',
+  },
+  optionLetterWrong: {
+    backgroundColor: '#e74c3c',
+  },
+  optionLetterText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: 'bold',
+  },
+  optionText: {
+    flex: 1,
+    fontSize: 15,
+    color: '#444',
+    fontWeight: '500',
+  },
+  optionTextSelected: {
+    color: '#1565c0',
+    fontWeight: '600',
+  },
+  checkMark: {
+    fontSize: 20,
+    color: '#27ae60',
+    fontWeight: 'bold',
+  },
+  xMark: {
+    fontSize: 18,
+    color: '#e74c3c',
+    fontWeight: 'bold',
+  },
+  resultArea: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  resultIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#e8f5e9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  resultIconWrong: {
+    backgroundColor: '#ffebee',
+  },
+  resultIcon: {
+    fontSize: 32,
+  },
+  resultTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#27ae60',
+  },
+  resultTitleWrong: {
+    color: '#e74c3c',
+  },
+  resultSub: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.6)',
+    marginTop: 4,
+  },
+  resultSubLocked: {
+    color: '#e74c3c',
+  },
+  actionArea: {
+    marginTop: 'auto',
+  },
+  submitBtn: {
+    backgroundColor: '#3498db',
+    paddingVertical: 18,
+    borderRadius: 16,
+    alignItems: 'center',
+    shadowColor: '#3498db',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  submitBtnDisabled: {
+    backgroundColor: '#546e7a',
+    shadowOpacity: 0,
+  },
+  submitBtnText: {
+    color: '#fff',
+    fontSize: 17,
+    fontWeight: 'bold',
+  },
+  nextBtn: {
+    backgroundColor: '#27ae60',
+    paddingVertical: 18,
+    borderRadius: 16,
+    alignItems: 'center',
+    shadowColor: '#27ae60',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  nextBtnLocked: {
+    backgroundColor: '#546e7a',
+    shadowOpacity: 0,
+  },
+  nextBtnText: {
+    color: '#fff',
+    fontSize: 17,
+    fontWeight: 'bold',
+  },
+});

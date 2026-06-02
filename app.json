@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "PBL_Map",
-    "slug": "PBL_Map",
+    "name": "PBL e-map",
+    "slug": "pbl-e-map",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
