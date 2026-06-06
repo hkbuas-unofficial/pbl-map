@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const DEVICE_ID_KEY = '@pbl_device_id';
 
 // CHANGE THIS to your Cloudflare Worker URL after deployment
-const API_BASE = 'https://pbl-map-api.s20201020.workers.dev';
+const API_BASE = 'https://pbl-map-api.hkbuas.workers.dev';
 
 let deviceIdCache = null;
 
