@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Text, View, StyleSheet } from 'react-native';
+import { Text, View, StyleSheet, Platform } from 'react-native';
 import { useAppData } from './src/hooks/useAppData';
+import { startSession, pingSession, endSession } from './src/lib/tracking';
 
 import MapScreen from './src/screens/MapScreen';
 import ScanScreen from './src/screens/ScanScreen';
@@ -22,6 +23,37 @@ function TabIcon({ emoji, focused }) {
 
 export default function App() {
   const appData = useAppData();
+
+  // Real-time session tracking
+  useEffect(() => {
+    if (!appData.deviceId || Platform.OS !== 'web') return;
+
+    const id = appData.deviceId;
+    startSession(id);
+
+    const heartbeat = setInterval(() => {
+      pingSession(id);
+    }, 30000);
+
+    const handleUnload = () => {
+      endSession(id);
+    };
+
+    window.addEventListener('beforeunload', handleUnload);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') {
+        endSession(id);
+      } else if (document.visibilityState === 'visible') {
+        startSession(id);
+      }
+    });
+
+    return () => {
+      clearInterval(heartbeat);
+      window.removeEventListener('beforeunload', handleUnload);
+      endSession(id);
+    };
+  }, [appData.deviceId]);
 
   if (appData.loading) {
     return (

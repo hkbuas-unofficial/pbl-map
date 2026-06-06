@@ -1,5 +1,4 @@
 -- PBL Map Analytics Schema
--- Run this in your D1 database console after creating the database
 
 CREATE TABLE IF NOT EXISTS users (
   device_id TEXT PRIMARY KEY,
@@ -25,9 +24,16 @@ CREATE TABLE IF NOT EXISTS redemptions (
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
--- Indexes for fast dashboard queries
+-- Sessions for real-time active users (heartbeat-based)
+CREATE TABLE IF NOT EXISTS sessions (
+  device_id TEXT PRIMARY KEY,
+  started_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  last_ping DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Indexes
 CREATE INDEX IF NOT EXISTS idx_events_device ON events(device_id);
 CREATE INDEX IF NOT EXISTS idx_events_type ON events(event_type);
 CREATE INDEX IF NOT EXISTS idx_events_booth ON events(booth_id);
 CREATE INDEX IF NOT EXISTS idx_events_created ON events(created_at);
-CREATE INDEX IF NOT EXISTS idx_users_seen ON users(last_seen);
+CREATE INDEX IF NOT EXISTS idx_sessions_ping ON sessions(last_ping);

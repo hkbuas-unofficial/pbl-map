@@ -3,7 +3,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const DEVICE_ID_KEY = '@pbl_device_id';
 
-// CHANGE THIS to your Cloudflare Worker URL after deployment
 const API_BASE = 'https://pbl-map-api.hkbuas.workers.dev';
 
 let deviceIdCache = null;
@@ -19,22 +18,53 @@ async function getDeviceId() {
   return id;
 }
 
+async function postJson(path, body) {
+  return fetch(`${API_BASE}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
 export async function trackEvent(eventType, { deviceId = null, boothId = null, metadata = null } = {}) {
   try {
     const id = deviceId || await getDeviceId();
-    await fetch(`${API_BASE}/api/track`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        device_id: id,
-        event_type: eventType,
-        booth_id: boothId,
-        metadata: metadata,
-      }),
+    await postJson('/api/track', {
+      device_id: id,
+      event_type: eventType,
+      booth_id: boothId,
+      metadata: metadata,
     });
   } catch (e) {
-    // Silently fail — tracking should never break the app
     console.log('Track error:', e.message);
+  }
+}
+
+// Session tracking for real-time active users
+export async function startSession(deviceId = null) {
+  try {
+    const id = deviceId || await getDeviceId();
+    await postJson('/api/session/start', { device_id: id });
+  } catch (e) {
+    console.log('Session start error:', e.message);
+  }
+}
+
+export async function pingSession(deviceId = null) {
+  try {
+    const id = deviceId || await getDeviceId();
+    await postJson('/api/session/ping', { device_id: id });
+  } catch (e) {
+    console.log('Session ping error:', e.message);
+  }
+}
+
+export async function endSession(deviceId = null) {
+  try {
+    const id = deviceId || await getDeviceId();
+    await postJson('/api/session/end', { device_id: id });
+  } catch (e) {
+    console.log('Session end error:', e.message);
   }
 }
 

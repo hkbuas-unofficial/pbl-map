@@ -11,18 +11,18 @@ import {
 } from 'react-native';
 import { REDEMPTION_THRESHOLD, REDEMPTION_COST, MAX_ATTEMPTS_PER_BOOTH } from '../hooks/useAppData';
 import { fetchStats, exportData } from '../lib/tracking';
+import LineChart from '../components/LineChart';
+import PieChart from '../components/PieChart';
 
 const ADMIN_PASSWORD = 'pbl5**';
 
 function formatEventType(type) {
   const map = {
     stamp_earned: '✅ Stamp Earned',
-    quiz_wrong: '❌ Wrong Answer',
     quiz_locked: '🔒 Locked Out',
     redemption: '🎁 Redemption',
     booth_tap: '👆 Booth Tap',
     scan: '📷 QR Scan',
-    page_view: '👁 Page View',
   };
   return map[type] || type;
 }
@@ -270,34 +270,48 @@ export default function ProfileScreen({ appData }) {
                 </View>
 
                 <View style={styles.dashSection}>
-                  <Text style={styles.dashSectionTitle}>👥 Active Today</Text>
-                  <Text style={styles.dashBigNum}>{dashStats.activeToday}</Text>
-                  <Text style={styles.dashSectionSub}>unique users in last 24h</Text>
+                  <Text style={styles.dashSectionTitle}>👥 Total Visitors (Last 20 Hours)</Text>
+                  <Text style={styles.dashSectionSub}>15-minute buckets</Text>
+                  {dashStats.visitorGraph && dashStats.visitorGraph.length > 0 ? (
+                    <LineChart
+                      data={dashStats.visitorGraph}
+                      width={360}
+                      height={180}
+                      lineColor="#3498db"
+                    />
+                  ) : (
+                    <Text style={styles.dashEmpty}>No visitor data yet</Text>
+                  )}
                 </View>
 
                 <View style={styles.dashSection}>
-                  <Text style={styles.dashSectionTitle}>🏆 Top Booths</Text>
+                  <Text style={styles.dashSectionTitle}>🏆 Booth Visits</Text>
                   {dashStats.topBooths.length === 0 ? (
                     <Text style={styles.dashEmpty}>No visits yet</Text>
                   ) : (
-                    dashStats.topBooths.map((b, i) => (
-                      <View key={b.booth_id} style={styles.dashRow}>
-                        <Text style={styles.dashRank}>#{i + 1}</Text>
-                        <Text style={styles.dashRowText}>Booth {b.booth_id}</Text>
-                        <Text style={styles.dashRowCount}>{b.visits} visits</Text>
-                      </View>
-                    ))
+                    <PieChart
+                      data={dashStats.topBooths.map((b) => ({
+                        label: `Booth ${b.booth_id}`,
+                        value: b.visits,
+                      }))}
+                      width={320}
+                      height={240}
+                    />
                   )}
                 </View>
 
                 <View style={styles.dashSection}>
                   <Text style={styles.dashSectionTitle}>📈 Events</Text>
-                  {dashStats.eventBreakdown.map((e) => (
-                    <View key={e.event_type} style={styles.dashRow}>
-                      <Text style={styles.dashRowText}>{formatEventType(e.event_type)}</Text>
-                      <Text style={styles.dashRowCount}>{e.count}</Text>
-                    </View>
-                  ))}
+                  {dashStats.eventBreakdown.length === 0 ? (
+                    <Text style={styles.dashEmpty}>No events yet</Text>
+                  ) : (
+                    dashStats.eventBreakdown.map((e) => (
+                      <View key={e.event_type} style={styles.dashRow}>
+                        <Text style={styles.dashRowText}>{formatEventType(e.event_type)}</Text>
+                        <Text style={styles.dashRowCount}>{e.count}</Text>
+                      </View>
+                    ))
+                  )}
                 </View>
 
                 <TouchableOpacity style={styles.dashExportBtn} onPress={handleExport}>
