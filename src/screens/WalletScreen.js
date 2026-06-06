@@ -12,6 +12,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { REDEMPTION_COST } from '../hooks/useAppData';
+import { trackEvent } from '../lib/tracking';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -27,6 +28,7 @@ export default function WalletScreen({ appData }) {
     hasStamp,
     canRedeem,
     redeemSouvenir,
+    deviceId,
   } = appData;
 
   const [redeemModalVisible, setRedeemModalVisible] = useState(false);
@@ -56,6 +58,7 @@ export default function WalletScreen({ appData }) {
   const handleStaffConfirm = async () => {
     const success = await redeemSouvenir();
     if (success) {
+      trackEvent('redemption', { deviceId, metadata: { stamps_used: REDEMPTION_COST } });
       setShowStaffScreen(false);
       setRedeemModalVisible(false);
       Alert.alert('Success!', `Souvenir redeemed! Stamps deducted.`);

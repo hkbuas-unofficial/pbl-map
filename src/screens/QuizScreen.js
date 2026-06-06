@@ -9,11 +9,12 @@ import {
   Animated,
   ScrollView,
 } from 'react-native';
+import { trackEvent } from '../lib/tracking';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
 export default function QuizScreen({ booth, onClose, appData }) {
-  const { addStamp, incrementAttempt, getRemainingAttempts } = appData;
+  const { addStamp, incrementAttempt, getRemainingAttempts, deviceId } = appData;
 
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [selectedOption, setSelectedOption] = useState(null);
@@ -78,10 +79,12 @@ export default function QuizScreen({ booth, onClose, appData }) {
 
     if (isCorrect) {
       await addStamp(booth.booth_id);
+      trackEvent('stamp_earned', { deviceId, boothId: booth.booth_id });
     } else {
       const newCount = await incrementAttempt(booth.booth_id);
       setTotalAttempts(newCount);
       triggerShake();
+      trackEvent('quiz_wrong', { deviceId, boothId: booth.booth_id, metadata: { attempt: newCount } });
     }
   };
 
@@ -92,6 +95,7 @@ export default function QuizScreen({ booth, onClose, appData }) {
     }
     const newRemaining = getRemainingAttempts(booth.booth_id);
     if (newRemaining <= 0) {
+      trackEvent('quiz_locked', { deviceId, boothId: booth.booth_id });
       onClose();
       return;
     }

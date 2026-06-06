@@ -1,0 +1,11 @@
+# Cloudflare Worker config for PBL Map API
+# After creating your D1 database, replace <YOUR_DATABASE_ID> with the actual ID
+
+name = "pbl-map-api"
+main = "src/index.js"
+compatibility_date = "2025-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "pbl-map-db"
+database_id = "<YOUR_DATABASE_ID>"

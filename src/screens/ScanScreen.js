@@ -11,13 +11,14 @@ import {
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import QuizScreen from './QuizScreen';
+import { trackEvent } from '../lib/tracking';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 const SCAN_SIZE = Math.min(SCREEN_W, SCREEN_H) * 0.65;
 const IS_WEB = Platform.OS === 'web';
 
 export default function ScanScreen({ appData }) {
-  const { booths, hasStamp, isLockedOut } = appData;
+  const { booths, hasStamp, isLockedOut, deviceId } = appData;
 
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
@@ -91,6 +92,7 @@ export default function ScanScreen({ appData }) {
     }
 
     // Valid booth - show quiz
+    trackEvent('scan', { deviceId, boothId: booth.booth_id });
     setQuizBooth(booth);
     setShowQuiz(true);
   }, [scanned, showQuiz, booths, hasStamp, isLockedOut]);

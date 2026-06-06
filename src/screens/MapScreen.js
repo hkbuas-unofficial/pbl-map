@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import BoothPin from '../components/BoothPin';
 import BoothDetailModal from '../components/BoothDetailModal';
+import { trackEvent } from '../lib/tracking';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
@@ -20,7 +21,7 @@ const MAP_IMG_W = 3800;
 const MAP_IMG_H = 3109;
 
 export default function MapScreen({ appData, navigation }) {
-  const { booths, hasStamp, isLockedOut, getRemainingAttempts, getStampCount } = appData;
+  const { booths, hasStamp, isLockedOut, getRemainingAttempts, getStampCount, deviceId } = appData;
 
   const [selectedBooth, setSelectedBooth] = useState(null);
   const [detailVisible, setDetailVisible] = useState(false);
@@ -311,6 +312,7 @@ export default function MapScreen({ appData, navigation }) {
   };
 
   const handlePinPress = (booth) => {
+    trackEvent('booth_tap', { deviceId, boothId: booth.booth_id });
     setSelectedBooth(booth);
     setDetailVisible(true);
   };

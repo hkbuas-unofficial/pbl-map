@@ -6,6 +6,7 @@ const STORAGE_KEYS = {
   STAMPS: '@pbl_stamps',
   ATTEMPTS: '@pbl_attempts',
   REDEMPTIONS: '@pbl_redemptions',
+  DEVICE_ID: '@pbl_device_id',
 };
 
 // Stamp requirements
@@ -19,6 +20,7 @@ export function useAppData() {
   const [redemptions, setRedemptions] = useState(0);
   const [loading, setLoading] = useState(true);
   const [booths] = useState(DEMO_BOOTHS);
+  const [deviceId, setDeviceId] = useState(null);
 
   // Load data from storage on mount
   useEffect(() => {
@@ -27,14 +29,22 @@ export function useAppData() {
 
   const loadData = async () => {
     try {
-      const [stampsJson, attemptsJson, redemptionsJson] = await Promise.all([
+      const [stampsJson, attemptsJson, redemptionsJson, deviceIdStored] = await Promise.all([
         AsyncStorage.getItem(STORAGE_KEYS.STAMPS),
         AsyncStorage.getItem(STORAGE_KEYS.ATTEMPTS),
         AsyncStorage.getItem(STORAGE_KEYS.REDEMPTIONS),
+        AsyncStorage.getItem(STORAGE_KEYS.DEVICE_ID),
       ]);
       setStamps(stampsJson ? JSON.parse(stampsJson) : {});
       setAttempts(attemptsJson ? JSON.parse(attemptsJson) : {});
       setRedemptions(redemptionsJson ? parseInt(redemptionsJson, 10) : 0);
+
+      let id = deviceIdStored;
+      if (!id) {
+        id = 'pbl_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+        await AsyncStorage.setItem(STORAGE_KEYS.DEVICE_ID, id);
+      }
+      setDeviceId(id);
     } catch (e) {
       console.error('Failed to load data:', e);
     } finally {
@@ -143,5 +153,6 @@ export function useAppData() {
     loadData,
     saveStamps,
     saveAttempts,
+    deviceId,
   };
 }
