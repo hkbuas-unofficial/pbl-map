@@ -8,4 +8,4 @@ compatibility_date = "2025-01-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "pbl-map-db"
-database_id = "<YOUR_DATABASE_ID>"
+database_id = "6c39960f-75ae-4029-a91c-7ad10ce06736"
