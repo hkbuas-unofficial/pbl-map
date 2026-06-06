@@ -6,7 +6,7 @@ import {
   Dimensions,
   Image,
   TouchableOpacity,
-  Animated,
+  Platform,
 } from 'react-native';
 import BoothPin from '../components/BoothPin';
 import BoothDetailModal from '../components/BoothDetailModal';
@@ -14,15 +14,10 @@ import BoothDetailModal from '../components/BoothDetailModal';
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
 const HEADER_H = 72;
-const MAP_AREA_W = SCREEN_W;
-const MAP_AREA_H = SCREEN_H - HEADER_H;
 
 // Actual map image dimensions
 const MAP_IMG_W = 3800;
 const MAP_IMG_H = 3109;
-
-// Extra drag border (pixels) around the map - generous for all directions
-const DRAG_BORDER = 600;
 
 export default function MapScreen({ appData, navigation }) {
   const { booths, hasStamp, isLockedOut, getRemainingAttempts, getStampCount } = appData;
@@ -30,50 +25,107 @@ export default function MapScreen({ appData, navigation }) {
   const [selectedBooth, setSelectedBooth] = useState(null);
   const [detailVisible, setDetailVisible] = useState(false);
 
+  // Container size (dynamic)
+  const [containerSize, setContainerSize] = useState({
+    w: SCREEN_W,
+    h: SCREEN_H - HEADER_H,
+  });
+
+  // Track container ref for measuring
+  const wrapperRef = useRef(null);
+
+  // Measure actual container size
+  useEffect(() => {
+    const measure = () => {
+      if (wrapperRef.current && Platform.OS === 'web') {
+        const node = wrapperRef.current;
+        // Handle both React Native Web's internal structure and direct DOM
+        const el = node._reactInternalFiber?.stateNode || node;
+        if (el && el.getBoundingClientRect) {
+          const rect = el.getBoundingClientRect();
+          setContainerSize({ w: rect.width, h: rect.height });
+        } else {
+          setContainerSize({ w: SCREEN_W, h: SCREEN_H - HEADER_H });
+        }
+      }
+    };
+    measure();
+    // Also measure after a short delay to catch layout settling
+    const t1 = setTimeout(measure, 100);
+    const t2 = setTimeout(measure, 500);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, []);
+
+  // Reload on screen resize (web)
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    let lastW = window.innerWidth;
+    let lastH = window.innerHeight;
+    const handleResize = () => {
+      const newW = window.innerWidth;
+      const newH = window.innerHeight;
+      if (newW !== lastW || newH !== lastH) {
+        lastW = newW;
+        lastH = newH;
+        window.location.reload();
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const MAP_AREA_W = containerSize.w;
+  const MAP_AREA_H = containerSize.h;
+
   // Calculate initial scale so entire map fits in view
   const getInitialScale = useCallback((imgW, imgH) => {
     const scaleX = MAP_AREA_W / imgW;
     const scaleY = MAP_AREA_H / imgH;
     return Math.min(scaleX, scaleY);
-  }, []);
+  }, [MAP_AREA_W, MAP_AREA_H]);
 
   // Zoom/pan state
-  const [baseScale, setBaseScale] = useState(() => getInitialScale(MAP_IMG_W, MAP_IMG_H));
   const [scale, setScale] = useState(() => getInitialScale(MAP_IMG_W, MAP_IMG_H));
   const [translateX, setTranslateX] = useState(0);
   const [translateY, setTranslateY] = useState(0);
 
-  const scaleAnim = useRef(new Animated.Value(getInitialScale(MAP_IMG_W, MAP_IMG_H))).current;
-  const translateXAnim = useRef(new Animated.Value(0)).current;
-  const translateYAnim = useRef(new Animated.Value(0)).current;
-
-  // Web-specific refs for mouse events
-  const mapRef = useRef(null);
+  // Refs for mouse events
   const isDraggingRef = useRef(false);
   const dragStartRef = useRef({ x: 0, y: 0 });
   const translateRef = useRef({ x: 0, y: 0 });
-  const scaleRef = useRef(getInitialScale(MAP_IMG_W, MAP_IMG_H));
+  const scaleRef = useRef(scale);
 
-  // Keep refs in sync with state
+  // Keep refs in sync
   useEffect(() => {
     translateRef.current = { x: translateX, y: translateY };
   }, [translateX, translateY]);
-
   useEffect(() => {
     scaleRef.current = scale;
   }, [scale]);
 
-  // Apply constrained transform with generous drag border
+  // Initialize / reinitialize when container size changes
+  useEffect(() => {
+    const initialScale = getInitialScale(MAP_IMG_W, MAP_IMG_H);
+    const centerX = (MAP_AREA_W - MAP_IMG_W * initialScale) / 2;
+    const centerY = (MAP_AREA_H - MAP_IMG_H * initialScale) / 2;
+    setScale(initialScale);
+    setTranslateX(centerX);
+    setTranslateY(centerY);
+    scaleRef.current = initialScale;
+    translateRef.current = { x: centerX, y: centerY };
+  }, [MAP_AREA_W, MAP_AREA_H, getInitialScale]);
+
+  // Apply constrained transform
   const applyTransform = useCallback((newScale, newTranslateX, newTranslateY) => {
     const scaledW = MAP_IMG_W * newScale;
     const scaledH = MAP_IMG_H * newScale;
 
-    // Always allow dragging past edges by DRAG_BORDER in ALL directions
-    // This works whether map is smaller or larger than container
-    const minX = MAP_AREA_W - scaledW - DRAG_BORDER;
-    const maxX = DRAG_BORDER;
-    const minY = MAP_AREA_H - scaledH - DRAG_BORDER;
-    const maxY = DRAG_BORDER;
+    // Allow generous overscroll in all directions
+    const border = 400;
+    const minX = MAP_AREA_W - scaledW - border;
+    const maxX = border;
+    const minY = MAP_AREA_H - scaledH - border;
+    const maxY = border;
 
     const constrainedX = Math.max(minX, Math.min(maxX, newTranslateX));
     const constrainedY = Math.max(minY, Math.min(maxY, newTranslateY));
@@ -81,36 +133,35 @@ export default function MapScreen({ appData, navigation }) {
     setScale(newScale);
     setTranslateX(constrainedX);
     setTranslateY(constrainedY);
-    scaleAnim.setValue(newScale);
-    translateXAnim.setValue(constrainedX);
-    translateYAnim.setValue(constrainedY);
+    translateRef.current = { x: constrainedX, y: constrainedY };
+    scaleRef.current = newScale;
 
     return { x: constrainedX, y: constrainedY };
-  }, [scaleAnim, translateXAnim, translateYAnim]);
+  }, [MAP_AREA_W, MAP_AREA_H]);
 
-  // Initialize with centered position
+  // Web mouse + touch events
   useEffect(() => {
-    const initialScale = getInitialScale(MAP_IMG_W, MAP_IMG_H);
-    const centerX = (MAP_AREA_W - MAP_IMG_W * initialScale) / 2;
-    const centerY = (MAP_AREA_H - MAP_IMG_H * initialScale) / 2;
-    applyTransform(initialScale, centerX, centerY);
-  }, [getInitialScale, applyTransform]);
+    if (Platform.OS !== 'web') return;
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
 
-  // Web mouse wheel zoom
-  useEffect(() => {
-    const el = mapRef.current;
-    if (!el) return;
+    // Get the actual DOM element
+    let target = wrapper;
+    if (wrapper._reactInternalFiber?.stateNode) {
+      target = wrapper._reactInternalFiber.stateNode;
+    }
+    if (!target || !target.nodeType) return;
 
-    const domNode = el._reactInternalFiber?.stateNode || el;
-    const target = domNode && domNode.nodeType ? domNode : el;
-
+    // --- Mouse wheel zoom ---
     const handleWheel = (e) => {
       e.preventDefault();
       const delta = -e.deltaY * 0.001;
       const currentScale = scaleRef.current;
-      const newScale = Math.max(baseScale * 0.5, Math.min(currentScale * (1 + delta), baseScale * 8));
+      const minScale = getInitialScale(MAP_IMG_W, MAP_IMG_H) * 0.5;
+      const maxScale = getInitialScale(MAP_IMG_W, MAP_IMG_H) * 8;
+      const newScale = Math.max(minScale, Math.min(currentScale * (1 + delta), maxScale));
 
-      const rect = target.getBoundingClientRect ? target.getBoundingClientRect() : { left: 0, top: 0, width: MAP_AREA_W, height: MAP_AREA_H };
+      const rect = target.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
       const mouseY = e.clientY - rect.top;
 
@@ -122,8 +173,10 @@ export default function MapScreen({ appData, navigation }) {
       applyTransform(newScale, newTranslateX, newTranslateY);
     };
 
+    // --- Mouse drag pan ---
     const handleMouseDown = (e) => {
-      if (scaleRef.current <= baseScale * 0.99) return;
+      const initialScale = getInitialScale(MAP_IMG_W, MAP_IMG_H);
+      if (scaleRef.current <= initialScale * 0.99) return;
       isDraggingRef.current = true;
       dragStartRef.current = {
         x: e.clientX - translateRef.current.x,
@@ -144,25 +197,117 @@ export default function MapScreen({ appData, navigation }) {
       target.style.cursor = 'grab';
     };
 
-    const container = target;
-    container.addEventListener('wheel', handleWheel, { passive: false });
-    container.addEventListener('mousedown', handleMouseDown);
+    // --- Touch: pinch to zoom + pan ---
+    const touchesRef = { ids: [], start: [], lastCenter: null, lastDist: null };
+
+    const getTouchPos = (t, rect) => ({
+      x: t.clientX - rect.left,
+      y: t.clientY - rect.top,
+    });
+
+    const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+    const center = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+
+    const handleTouchStart = (e) => {
+      if (e.touches.length === 1) {
+        // Single finger: start pan
+        isDraggingRef.current = true;
+        const t = e.touches[0];
+        dragStartRef.current = {
+          x: t.clientX - translateRef.current.x,
+          y: t.clientY - translateRef.current.y,
+        };
+      } else if (e.touches.length === 2) {
+        // Two fingers: start pinch
+        isDraggingRef.current = false;
+        const rect = target.getBoundingClientRect();
+        const t0 = getTouchPos(e.touches[0], rect);
+        const t1 = getTouchPos(e.touches[1], rect);
+        touchesRef.lastDist = dist(t0, t1);
+        touchesRef.lastCenter = center(t0, t1);
+        touchesRef.startScale = scaleRef.current;
+        touchesRef.startTranslate = { ...translateRef.current };
+      }
+    };
+
+    const handleTouchMove = (e) => {
+      e.preventDefault();
+      if (e.touches.length === 1 && isDraggingRef.current) {
+        // Single finger pan
+        const t = e.touches[0];
+        const newX = t.clientX - dragStartRef.current.x;
+        const newY = t.clientY - dragStartRef.current.y;
+        applyTransform(scaleRef.current, newX, newY);
+      } else if (e.touches.length === 2 && touchesRef.lastDist && touchesRef.lastCenter) {
+        // Two finger pinch zoom
+        const rect = target.getBoundingClientRect();
+        const t0 = getTouchPos(e.touches[0], rect);
+        const t1 = getTouchPos(e.touches[1], rect);
+
+        const newDist = dist(t0, t1);
+        const newCenter = center(t0, t1);
+
+        const minScale = getInitialScale(MAP_IMG_W, MAP_IMG_H) * 0.5;
+        const maxScale = getInitialScale(MAP_IMG_W, MAP_IMG_H) * 8;
+        const scaleFactor = newDist / touchesRef.lastDist;
+        const newScale = Math.max(minScale, Math.min(touchesRef.startScale * scaleFactor, maxScale));
+
+        // Zoom towards pinch center
+        const scaleRatio = newScale / touchesRef.startScale;
+        const newTranslateX = newCenter.x - (touchesRef.lastCenter.x - touchesRef.startTranslate.x) * scaleRatio;
+        const newTranslateY = newCenter.y - (touchesRef.lastCenter.y - touchesRef.startTranslate.y) * scaleRatio;
+
+        applyTransform(newScale, newTranslateX, newTranslateY);
+      }
+    };
+
+    const handleTouchEnd = (e) => {
+      if (e.touches.length === 0) {
+        isDraggingRef.current = false;
+        touchesRef.lastDist = null;
+        touchesRef.lastCenter = null;
+      } else if (e.touches.length === 1) {
+        // Back to single finger: switch to pan mode
+        isDraggingRef.current = true;
+        touchesRef.lastDist = null;
+        touchesRef.lastCenter = null;
+        const t = e.touches[0];
+        dragStartRef.current = {
+          x: t.clientX - translateRef.current.x,
+          y: t.clientY - translateRef.current.y,
+        };
+      }
+    };
+
+    target.addEventListener('wheel', handleWheel, { passive: false });
+    target.addEventListener('mousedown', handleMouseDown);
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseup', handleMouseUp);
 
+    target.addEventListener('touchstart', handleTouchStart, { passive: false });
+    target.addEventListener('touchmove', handleTouchMove, { passive: false });
+    target.addEventListener('touchend', handleTouchEnd);
+    target.addEventListener('touchcancel', handleTouchEnd);
+
     return () => {
-      container.removeEventListener('wheel', handleWheel);
-      container.removeEventListener('mousedown', handleMouseDown);
+      target.removeEventListener('wheel', handleWheel);
+      target.removeEventListener('mousedown', handleMouseDown);
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [baseScale, applyTransform]);
 
-  // Reset zoom to fit (centered)
+      target.removeEventListener('touchstart', handleTouchStart);
+      target.removeEventListener('touchmove', handleTouchMove);
+      target.removeEventListener('touchend', handleTouchEnd);
+      target.removeEventListener('touchcancel', handleTouchEnd);
+    };
+  }, [applyTransform, getInitialScale]);
+
+  // Reset zoom to fit
   const handleResetZoom = () => {
-    const centerX = (MAP_AREA_W - MAP_IMG_W * baseScale) / 2;
-    const centerY = (MAP_AREA_H - MAP_IMG_H * baseScale) / 2;
-    applyTransform(baseScale, centerX, centerY);
+    const initialScale = getInitialScale(MAP_IMG_W, MAP_IMG_H);
+    const centerX = (MAP_AREA_W - MAP_IMG_W * initialScale) / 2;
+    const centerY = (MAP_AREA_H - MAP_IMG_H * initialScale) / 2;
+    applyTransform(initialScale, centerX, centerY);
   };
 
   const handlePinPress = (booth) => {
@@ -180,8 +325,28 @@ export default function MapScreen({ appData, navigation }) {
   const stampCount = getStampCount();
   const totalBooths = booths.length;
 
-  // Calculate inverse scale for pins so they stay roughly constant visual size
-  const pinScale = Math.max(0.35, Math.min(1.5, baseScale / scale));
+  // Compute CSS transform string for web
+  const transformStyle = Platform.OS === 'web'
+    ? { transform: `translate(${translateX}px, ${translateY}px) scale(${scale})` }
+    : {
+        transform: [
+          { translateX },
+          { translateY },
+          { scale },
+        ],
+      };
+
+  // Calculate pin positions in screen coordinates
+  // Each booth has booth_x, booth_y as percentages (0-100)
+  const getPinScreenPos = (booth) => {
+    const mapPixelX = (booth.booth_x / 100) * MAP_IMG_W;
+    const mapPixelY = (booth.booth_y / 100) * MAP_IMG_H;
+    const screenX = mapPixelX * scale + translateX;
+    const screenY = mapPixelY * scale + translateY;
+    return { x: screenX, y: screenY };
+  };
+
+  const initialScale = getInitialScale(MAP_IMG_W, MAP_IMG_H);
 
   return (
     <View style={styles.container}>
@@ -190,27 +355,20 @@ export default function MapScreen({ appData, navigation }) {
         <Text style={styles.subtitle}>Scroll to zoom • Drag to pan • Tap a booth</Text>
       </View>
 
-      <View style={styles.mapWrapper}>
+      <View style={styles.mapWrapper} ref={wrapperRef}>
+        {/* Map image layer - transforms with zoom/pan */}
         <View
-          ref={mapRef}
           style={[
             styles.mapContainer,
-            { cursor: scale > baseScale * 0.99 ? 'grab' : 'default' },
+            { cursor: scale > initialScale * 0.99 ? 'grab' : 'default' },
           ]}
         >
-          <Animated.View
+          <View
             style={[
               styles.zoomableContent,
-              {
-                width: MAP_IMG_W,
-                height: MAP_IMG_H,
-                transform: [
-                  { scale: scaleAnim },
-                  { translateX: translateXAnim },
-                  { translateY: translateYAnim },
-                ],
-              },
+              Platform.OS === 'web' ? transformStyle : {},
             ]}
+            {...(Platform.OS !== 'web' ? { transform: transformStyle.transform } : {})}
           >
             <Image
               source={require('../../assets/map/venue_map.jpg')}
@@ -220,16 +378,31 @@ export default function MapScreen({ appData, navigation }) {
               }}
               resizeMode="stretch"
             />
+          </View>
+        </View>
 
-            {/* Pins are ON the map, they scale with zoom */}
-            {booths.map((booth) => (
+        {/* Pins overlay - positioned in screen coordinates, NOT scaled */}
+        <View style={styles.pinsOverlay} pointerEvents="box-none">
+          {booths.map((booth) => {
+            const pos = getPinScreenPos(booth);
+            // Only show pins that are within or near the visible area
+            const margin = 100;
+            if (
+              pos.x < -margin ||
+              pos.x > MAP_AREA_W + margin ||
+              pos.y < -margin ||
+              pos.y > MAP_AREA_H + margin
+            ) {
+              return null;
+            }
+            return (
               <View
                 key={booth.booth_id}
                 style={[
                   styles.pinWrapper,
                   {
-                    left: `${booth.booth_x}%`,
-                    top: `${booth.booth_y}%`,
+                    left: pos.x,
+                    top: pos.y,
                   },
                 ]}
               >
@@ -237,11 +410,10 @@ export default function MapScreen({ appData, navigation }) {
                   booth={booth}
                   hasStamp={hasStamp(booth.booth_id)}
                   onPress={() => handlePinPress(booth)}
-                  scale={pinScale}
                 />
               </View>
-            ))}
-          </Animated.View>
+            );
+          })}
         </View>
 
         {/* Stats overlay - bottom right */}
@@ -281,7 +453,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   header: {
-    height: 72,
+    height: HEADER_H,
     paddingTop: 16,
     paddingHorizontal: 16,
     paddingBottom: 8,
@@ -306,18 +478,27 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   mapContainer: {
-    width: MAP_AREA_W,
-    height: MAP_AREA_H,
-    justifyContent: 'center',
-    alignItems: 'center',
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'flex-start',
+    alignItems: 'flex-start',
     overflow: 'hidden',
   },
   zoomableContent: {
-    position: 'relative',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: MAP_IMG_W,
+    height: MAP_IMG_H,
+    transformOrigin: 'top left',
+  },
+  pinsOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 10,
   },
   pinWrapper: {
     position: 'absolute',
-    transform: [{ translateX: -50 }, { translateY: -50 }],
+    transform: [{ translateX: -18 }, { translateY: -18 }], // center the pin
+    zIndex: 11,
   },
   statsOverlay: {
     position: 'absolute',
@@ -335,6 +516,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    zIndex: 20,
   },
   statRow: {
     flexDirection: 'row',
@@ -368,6 +550,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    zIndex: 20,
   },
   zoomBtnText: {
     color: '#333',

@@ -335,7 +335,7 @@ export default function ProfileScreen({ appData }) {
             <Text style={styles.subtitle}>Event participation stats</Text>
           </View>
           <TouchableOpacity style={styles.adminBtn} onPress={handleOpenAdmin}>
-            <Text style={styles.adminBtnText}>👤</Text>
+            <Text style={styles.adminBtnText}>Admin</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -344,7 +344,7 @@ export default function ProfileScreen({ appData }) {
         {/* Avatar Card */}
         <View style={styles.avatarCard}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>👤</Text>
+            <Text style={styles.avatarText}>👨</Text>
           </View>
           <Text style={styles.avatarName}>Event Participant</Text>
           <Text style={styles.avatarSub}>Keep collecting stamps!</Text>
@@ -488,7 +488,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   adminBtnText: {
-    fontSize: 22,
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#1976d2',
   },
   scrollView: {
     flex: 1,

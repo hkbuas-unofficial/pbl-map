@@ -64,24 +64,6 @@ export default function WalletScreen({ appData }) {
     }
   };
 
-  const handleReset = () => {
-    Alert.alert(
-      'Reset All Data',
-      'This will clear all stamps, attempts, and redemptions. Are you sure?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Reset',
-          style: 'destructive',
-          onPress: async () => {
-            await appData.resetAll();
-            Alert.alert('Reset Complete', 'All data has been cleared.');
-          },
-        },
-      ]
-    );
-  };
-
   // Calculate grid layout: aim for roughly square-ish grid
   // If cardSlots = 3 → 1 row of 3, or stack vertically on narrow screens
   // We use a vertical stack (column) approach for the stamp card
@@ -168,10 +150,6 @@ export default function WalletScreen({ appData }) {
           </>
         )}
 
-        {/* Reset Button */}
-        <TouchableOpacity style={styles.resetBtn} onPress={handleReset}>
-          <Text style={styles.resetBtnText}>Reset All Data (Debug)</Text>
-        </TouchableOpacity>
       </ScrollView>
 
       {/* Redeem Modal (participant view) */}
@@ -450,15 +428,6 @@ const styles = StyleSheet.create({
     color: '#27ae60',
     fontSize: 14,
     fontWeight: 'bold',
-  },
-  resetBtn: {
-    marginTop: 20,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  resetBtnText: {
-    color: '#e74c3c',
-    fontSize: 14,
   },
   // Modal
   modalOverlay: {

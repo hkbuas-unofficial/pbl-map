@@ -8,6 +8,7 @@ import MapScreen from './src/screens/MapScreen';
 import ScanScreen from './src/screens/ScanScreen';
 import WalletScreen from './src/screens/WalletScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
+import NetworkGate from './src/components/NetworkGate';
 
 const Tab = createBottomTabNavigator();
 
@@ -31,52 +32,54 @@ export default function App() {
   }
 
   return (
-    <NavigationContainer>
-      <Tab.Navigator
-        screenOptions={{
-          headerShown: false,
-          tabBarStyle: styles.tabBar,
-          tabBarShowLabel: true,
-          tabBarLabelStyle: styles.tabLabel,
-          tabBarActiveTintColor: '#3498db',
-          tabBarInactiveTintColor: '#888',
-        }}
-      >
-        <Tab.Screen
-          name="Map"
-          options={{
-            tabBarIcon: ({ focused }) => <TabIcon emoji="🗺️" focused={focused} />,
+    <NetworkGate>
+      <NavigationContainer>
+        <Tab.Navigator
+          screenOptions={{
+            headerShown: false,
+            tabBarStyle: styles.tabBar,
+            tabBarShowLabel: true,
+            tabBarLabelStyle: styles.tabLabel,
+            tabBarActiveTintColor: '#3498db',
+            tabBarInactiveTintColor: '#888',
           }}
         >
-          {(props) => <MapScreen {...props} appData={appData} />}
-        </Tab.Screen>
-        <Tab.Screen
-          name="Scan"
-          options={{
-            tabBarIcon: ({ focused }) => <TabIcon emoji="📷" focused={focused} />,
-          }}
-        >
-          {() => <ScanScreen appData={appData} />}
-        </Tab.Screen>
-        <Tab.Screen
-          name="My Stamps"
-          options={{
-            tabBarIcon: ({ focused }) => <TabIcon emoji="🏆" focused={focused} />,
-            tabBarBadge: appData.getStampCount() > 0 ? appData.getStampCount() : undefined,
-          }}
-        >
-          {() => <WalletScreen appData={appData} />}
-        </Tab.Screen>
-        <Tab.Screen
-          name="Profile"
-          options={{
-            tabBarIcon: ({ focused }) => <TabIcon emoji="👤" focused={focused} />,
-          }}
-        >
-          {() => <ProfileScreen appData={appData} />}
-        </Tab.Screen>
-      </Tab.Navigator>
-    </NavigationContainer>
+          <Tab.Screen
+            name="Map"
+            options={{
+              tabBarIcon: ({ focused }) => <TabIcon emoji="🗺️" focused={focused} />,
+            }}
+          >
+            {(props) => <MapScreen {...props} appData={appData} />}
+          </Tab.Screen>
+          <Tab.Screen
+            name="Scan"
+            options={{
+              tabBarIcon: ({ focused }) => <TabIcon emoji="📷" focused={focused} />,
+            }}
+          >
+            {() => <ScanScreen appData={appData} />}
+          </Tab.Screen>
+          <Tab.Screen
+            name="My Stamps"
+            options={{
+              tabBarIcon: ({ focused }) => <TabIcon emoji="🏆" focused={focused} />,
+              tabBarBadge: appData.getStampCount() > 0 ? appData.getStampCount() : undefined,
+            }}
+          >
+            {() => <WalletScreen appData={appData} />}
+          </Tab.Screen>
+          <Tab.Screen
+            name="Profile"
+            options={{
+              tabBarIcon: ({ focused }) => <TabIcon emoji="👤" focused={focused} />,
+            }}
+          >
+            {() => <ProfileScreen appData={appData} />}
+          </Tab.Screen>
+        </Tab.Navigator>
+      </NavigationContainer>
+    </NetworkGate>
   );
 }
 
@@ -102,14 +105,15 @@ const styles = StyleSheet.create({
   tabLabel: {
     fontSize: 11,
     fontWeight: '600',
-    marginTop: 2,
+    marginBottom: 4,
   },
   iconBox: {
     width: 36,
     height: 36,
-    borderRadius: 10,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
+    marginBottom: 2,
   },
   iconBoxFocused: {
     backgroundColor: '#e3f2fd',
