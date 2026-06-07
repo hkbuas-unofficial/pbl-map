@@ -9,12 +9,12 @@ import {
   Animated,
   ScrollView,
 } from 'react-native';
-import { trackEvent } from '../lib/tracking';
+import { capture } from '../lib/posthog';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
 export default function QuizScreen({ booth, onClose, appData }) {
-  const { addStamp, incrementAttempt, getRemainingAttempts, deviceId } = appData;
+  const { addStamp, incrementAttempt, getRemainingAttempts } = appData;
 
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [selectedOption, setSelectedOption] = useState(null);
@@ -79,12 +79,12 @@ export default function QuizScreen({ booth, onClose, appData }) {
 
     if (isCorrect) {
       await addStamp(booth.booth_id);
-      trackEvent('stamp_earned', { deviceId, boothId: booth.booth_id });
+      capture('stamp_earned', { booth_id: booth.booth_id, booth_name: booth.booth_name });
     } else {
       const newCount = await incrementAttempt(booth.booth_id);
       setTotalAttempts(newCount);
       triggerShake();
-      trackEvent('quiz_wrong', { deviceId, boothId: booth.booth_id, metadata: { attempt: newCount } });
+      capture('quiz_wrong', { booth_id: booth.booth_id, booth_name: booth.booth_name, attempt: newCount });
     }
   };
 
@@ -95,7 +95,7 @@ export default function QuizScreen({ booth, onClose, appData }) {
     }
     const newRemaining = getRemainingAttempts(booth.booth_id);
     if (newRemaining <= 0) {
-      trackEvent('quiz_locked', { deviceId, boothId: booth.booth_id });
+      capture('quiz_locked', { booth_id: booth.booth_id, booth_name: booth.booth_name });
       onClose();
       return;
     }

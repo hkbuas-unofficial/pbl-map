@@ -10,22 +10,8 @@ import {
   Alert,
 } from 'react-native';
 import { REDEMPTION_THRESHOLD, REDEMPTION_COST, MAX_ATTEMPTS_PER_BOOTH } from '../hooks/useAppData';
-import { fetchStats, exportData } from '../lib/tracking';
-import LineChart from '../components/LineChart';
-import PieChart from '../components/PieChart';
 
 const ADMIN_PASSWORD = 'pbl5**';
-
-function formatEventType(type) {
-  const map = {
-    stamp_earned: '✅ Stamp Earned',
-    quiz_locked: '🔒 Locked Out',
-    redemption: '🎁 Redemption',
-    booth_tap: '👆 Booth Tap',
-    scan: '📷 QR Scan',
-  };
-  return map[type] || type;
-}
 
 export default function ProfileScreen({ appData }) {
   const { booths, stamps, attempts, redemptions, getStampCount, addStamp, resetAll, saveAttempts } = appData;
@@ -35,59 +21,18 @@ export default function ProfileScreen({ appData }) {
   const [passwordInput, setPasswordInput] = useState('');
   const [passwordError, setPasswordError] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [adminTab, setAdminTab] = useState('dashboard'); // 'dashboard' | 'stamps' | 'reset' | 'quiz'
+  const [adminTab, setAdminTab] = useState('stamps'); // 'stamps' | 'reset' | 'quiz'
   const [selectedBoothForQuiz, setSelectedBoothForQuiz] = useState(null);
   const [selectedQuestion, setSelectedQuestion] = useState(null);
   const [selectedAnswer, setSelectedAnswer] = useState(null);
   const [stampNumberInput, setStampNumberInput] = useState(String(stampCount));
-
-  // Dashboard state
-  const [dashStats, setDashStats] = useState(null);
-  const [dashLoading, setDashLoading] = useState(false);
-  const [dashLastUpdated, setDashLastUpdated] = useState(null);
-
-  const loadDashStats = useCallback(async () => {
-    setDashLoading(true);
-    try {
-      const data = await fetchStats();
-      setDashStats(data);
-      setDashLastUpdated(new Date());
-    } catch (e) {
-      console.log('Dashboard stats error:', e.message);
-    } finally {
-      setDashLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!isAuthenticated || adminTab !== 'dashboard') return;
-    loadDashStats();
-    const interval = setInterval(loadDashStats, 10000);
-    return () => clearInterval(interval);
-  }, [isAuthenticated, adminTab, loadDashStats]);
-
-  const handleExport = async () => {
-    try {
-      const data = await exportData();
-      const jsonStr = JSON.stringify(data, null, 2);
-      const blob = new Blob([jsonStr], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `pbl-export-${new Date().toISOString().slice(0, 10)}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (e) {
-      Alert.alert('Export failed', e.message);
-    }
-  };
 
   const handleOpenAdmin = () => {
     setAdminModalVisible(true);
     setPasswordInput('');
     setPasswordError(false);
     setIsAuthenticated(false);
-    setAdminTab('dashboard');
+    setAdminTab('stamps');
     setSelectedBoothForQuiz(null);
     setSelectedQuestion(null);
     setSelectedAnswer(null);
@@ -200,14 +145,6 @@ export default function ProfileScreen({ appData }) {
       {/* Tab bar */}
       <View style={styles.tabBar}>
         <TouchableOpacity
-          style={[styles.tab, adminTab === 'dashboard' && styles.tabActive]}
-          onPress={() => setAdminTab('dashboard')}
-        >
-          <Text style={[styles.tabText, adminTab === 'dashboard' && styles.tabTextActive]}>
-            Dashboard
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
           style={[styles.tab, adminTab === 'stamps' && styles.tabActive]}
           onPress={() => setAdminTab('stamps')}
         >
@@ -235,93 +172,6 @@ export default function ProfileScreen({ appData }) {
 
       {/* Tab content */}
       <ScrollView style={styles.tabContent}>
-        {adminTab === 'dashboard' && (
-          <View style={styles.tabPanel}>
-            <View style={styles.dashHeader}>
-              <Text style={styles.panelTitle}>📊 Live Stats</Text>
-              {dashLastUpdated && (
-                <Text style={styles.dashUpdated}>Updated {dashLastUpdated.toLocaleTimeString()}</Text>
-              )}
-            </View>
-
-            {dashLoading && !dashStats && (
-              <Text style={styles.dashLoading}>Loading stats...</Text>
-            )}
-
-            {dashStats && (
-              <>
-                <View style={styles.dashGrid}>
-                  <View style={[styles.dashCard, { borderTopColor: '#3498db' }]}>
-                    <Text style={[styles.dashCardNum, { color: '#3498db' }]}>{dashStats.totalUsers}</Text>
-                    <Text style={styles.dashCardLabel}>Total Users</Text>
-                  </View>
-                  <View style={[styles.dashCard, { borderTopColor: '#27ae60' }]}>
-                    <Text style={[styles.dashCardNum, { color: '#27ae60' }]}>{dashStats.activeNow}</Text>
-                    <Text style={styles.dashCardLabel}>Active Now</Text>
-                  </View>
-                  <View style={[styles.dashCard, { borderTopColor: '#e74c3c' }]}>
-                    <Text style={[styles.dashCardNum, { color: '#e74c3c' }]}>{dashStats.totalRedemptions}</Text>
-                    <Text style={styles.dashCardLabel}>Redemptions</Text>
-                  </View>
-                  <View style={[styles.dashCard, { borderTopColor: '#9b59b6' }]}>
-                    <Text style={[styles.dashCardNum, { color: '#9b59b6' }]}>{dashStats.avgStamps}</Text>
-                    <Text style={styles.dashCardLabel}>Avg Stamps</Text>
-                  </View>
-                </View>
-
-                <View style={styles.dashSection}>
-                  <Text style={styles.dashSectionTitle}>👥 Total Visitors (Last 20 Hours)</Text>
-                  <Text style={styles.dashSectionSub}>15-minute buckets</Text>
-                  {dashStats.visitorGraph && dashStats.visitorGraph.length > 0 ? (
-                    <LineChart
-                      data={dashStats.visitorGraph}
-                      width={360}
-                      height={180}
-                      lineColor="#3498db"
-                    />
-                  ) : (
-                    <Text style={styles.dashEmpty}>No visitor data yet</Text>
-                  )}
-                </View>
-
-                <View style={styles.dashSection}>
-                  <Text style={styles.dashSectionTitle}>🏆 Booth Visits</Text>
-                  {dashStats.topBooths.length === 0 ? (
-                    <Text style={styles.dashEmpty}>No visits yet</Text>
-                  ) : (
-                    <PieChart
-                      data={dashStats.topBooths.map((b) => ({
-                        label: `Booth ${b.booth_id}`,
-                        value: b.visits,
-                      }))}
-                      width={320}
-                      height={240}
-                    />
-                  )}
-                </View>
-
-                <View style={styles.dashSection}>
-                  <Text style={styles.dashSectionTitle}>📈 Events</Text>
-                  {dashStats.eventBreakdown.length === 0 ? (
-                    <Text style={styles.dashEmpty}>No events yet</Text>
-                  ) : (
-                    dashStats.eventBreakdown.map((e) => (
-                      <View key={e.event_type} style={styles.dashRow}>
-                        <Text style={styles.dashRowText}>{formatEventType(e.event_type)}</Text>
-                        <Text style={styles.dashRowCount}>{e.count}</Text>
-                      </View>
-                    ))
-                  )}
-                </View>
-
-                <TouchableOpacity style={styles.dashExportBtn} onPress={handleExport}>
-                  <Text style={styles.dashExportText}>📥 Export All Data</Text>
-                </TouchableOpacity>
-              </>
-            )}
-          </View>
-        )}
-
         {adminTab === 'stamps' && (
           <View style={styles.tabPanel}>
             <Text style={styles.panelTitle}>Set Stamp Count</Text>
@@ -1184,114 +1034,5 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 15,
     fontWeight: 'bold',
-  },
-  // Dashboard
-  dashHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  dashUpdated: {
-    fontSize: 11,
-    color: '#888',
-  },
-  dashLoading: {
-    fontSize: 14,
-    color: '#888',
-    textAlign: 'center',
-    paddingVertical: 20,
-  },
-  dashGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    marginBottom: 16,
-  },
-  dashCard: {
-    flex: 1,
-    minWidth: 130,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 14,
-    alignItems: 'center',
-    borderTopWidth: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
-  },
-  dashCardNum: {
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  dashCardLabel: {
-    fontSize: 11,
-    color: '#888',
-    marginTop: 4,
-  },
-  dashSection: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 12,
-  },
-  dashSectionTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 10,
-  },
-  dashBigNum: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#3498db',
-  },
-  dashSectionSub: {
-    fontSize: 12,
-    color: '#888',
-    marginTop: 2,
-  },
-  dashEmpty: {
-    fontSize: 13,
-    color: '#aaa',
-    fontStyle: 'italic',
-  },
-  dashRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  dashRank: {
-    width: 28,
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#888',
-  },
-  dashRowText: {
-    flex: 1,
-    fontSize: 13,
-    color: '#333',
-  },
-  dashRowCount: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#3498db',
-  },
-  dashExportBtn: {
-    backgroundColor: '#27ae60',
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginTop: 8,
-    marginBottom: 20,
-  },
-  dashExportText: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '600',
   },
 });

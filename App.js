@@ -3,7 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Text, View, StyleSheet, Platform } from 'react-native';
 import { useAppData } from './src/hooks/useAppData';
-import { startSession, endSession } from './src/lib/tracking';
+import { initPostHog } from './src/lib/posthog';
 
 import MapScreen from './src/screens/MapScreen';
 import ScanScreen from './src/screens/ScanScreen';
@@ -24,34 +24,12 @@ function TabIcon({ emoji, focused }) {
 export default function App() {
   const appData = useAppData();
 
-  // Real-time session tracking (no heartbeat to save D1 writes)
+  // Initialize PostHog analytics on web
   useEffect(() => {
-    if (!appData.deviceId || Platform.OS !== 'web') return;
-
-    const id = appData.deviceId;
-    startSession(id);
-
-    const handleUnload = () => {
-      endSession(id);
-    };
-
-    const handleVisibility = () => {
-      if (document.visibilityState === 'hidden') {
-        endSession(id);
-      } else if (document.visibilityState === 'visible') {
-        startSession(id);
-      }
-    };
-
-    window.addEventListener('beforeunload', handleUnload);
-    document.addEventListener('visibilitychange', handleVisibility);
-
-    return () => {
-      window.removeEventListener('beforeunload', handleUnload);
-      document.removeEventListener('visibilitychange', handleVisibility);
-      endSession(id);
-    };
-  }, [appData.deviceId]);
+    if (Platform.OS === 'web') {
+      initPostHog();
+    }
+  }, []);
 
   if (appData.loading) {
     return (
