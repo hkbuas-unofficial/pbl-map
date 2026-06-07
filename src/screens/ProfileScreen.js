@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,10 +8,52 @@ import {
   Modal,
   TextInput,
   Alert,
+  Platform,
 } from 'react-native';
 import { REDEMPTION_THRESHOLD, REDEMPTION_COST, MAX_ATTEMPTS_PER_BOOTH } from '../hooks/useAppData';
 
 const ADMIN_PASSWORD = 'pbl5**';
+const POSTHOG_DASHBOARD_URL = 'https://us.posthog.com/embedded/hSFzBktMYyc7SGTuEgPL47AcZGeR4A';
+
+function DashboardIframe() {
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !containerRef.current) return;
+
+    let target = containerRef.current;
+    if (target._reactInternalFiber?.stateNode) {
+      target = target._reactInternalFiber.stateNode;
+    }
+    if (!target || !target.nodeType) return;
+
+    target.innerHTML = '';
+    const iframe = document.createElement('iframe');
+    iframe.src = POSTHOG_DASHBOARD_URL;
+    iframe.style.width = '100%';
+    iframe.style.height = '100%';
+    iframe.style.border = 'none';
+    iframe.style.borderRadius = '12px';
+    iframe.setAttribute('frameborder', '0');
+    iframe.setAttribute('allowfullscreen', '');
+    iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-popups');
+    target.appendChild(iframe);
+
+    return () => {
+      target.innerHTML = '';
+    };
+  }, []);
+
+  return (
+    <View style={styles.iframeWrap}>
+      {Platform.OS === 'web' ? (
+        <View ref={containerRef} style={styles.iframeContainer} />
+      ) : (
+        <Text style={styles.iframeFallback}>View dashboard on web browser</Text>
+      )}
+    </View>
+  );
+}
 
 export default function ProfileScreen({ appData }) {
   const { booths, stamps, attempts, redemptions, getStampCount, addStamp, resetAll, saveAttempts } = appData;
@@ -21,7 +63,7 @@ export default function ProfileScreen({ appData }) {
   const [passwordInput, setPasswordInput] = useState('');
   const [passwordError, setPasswordError] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [adminTab, setAdminTab] = useState('stamps'); // 'stamps' | 'reset' | 'quiz'
+  const [adminTab, setAdminTab] = useState('dashboard'); // 'dashboard' | 'stamps' | 'reset' | 'quiz'
   const [selectedBoothForQuiz, setSelectedBoothForQuiz] = useState(null);
   const [selectedQuestion, setSelectedQuestion] = useState(null);
   const [selectedAnswer, setSelectedAnswer] = useState(null);
@@ -32,7 +74,7 @@ export default function ProfileScreen({ appData }) {
     setPasswordInput('');
     setPasswordError(false);
     setIsAuthenticated(false);
-    setAdminTab('stamps');
+    setAdminTab('dashboard');
     setSelectedBoothForQuiz(null);
     setSelectedQuestion(null);
     setSelectedAnswer(null);
@@ -145,6 +187,14 @@ export default function ProfileScreen({ appData }) {
       {/* Tab bar */}
       <View style={styles.tabBar}>
         <TouchableOpacity
+          style={[styles.tab, adminTab === 'dashboard' && styles.tabActive]}
+          onPress={() => setAdminTab('dashboard')}
+        >
+          <Text style={[styles.tabText, adminTab === 'dashboard' && styles.tabTextActive]}>
+            Dashboard
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
           style={[styles.tab, adminTab === 'stamps' && styles.tabActive]}
           onPress={() => setAdminTab('stamps')}
         >
@@ -172,6 +222,13 @@ export default function ProfileScreen({ appData }) {
 
       {/* Tab content */}
       <ScrollView style={styles.tabContent}>
+        {adminTab === 'dashboard' && (
+          <View style={styles.tabPanel}>
+            <Text style={styles.panelTitle}>📊 Live Analytics</Text>
+            <DashboardIframe />
+          </View>
+        )}
+
         {adminTab === 'stamps' && (
           <View style={styles.tabPanel}>
             <Text style={styles.panelTitle}>Set Stamp Count</Text>
@@ -1034,5 +1091,23 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 15,
     fontWeight: 'bold',
+  },
+  iframeWrap: {
+    flex: 1,
+    minHeight: 400,
+    marginTop: 12,
+  },
+  iframeContainer: {
+    flex: 1,
+    minHeight: 400,
+    borderRadius: 12,
+    backgroundColor: '#fff',
+    overflow: 'hidden',
+  },
+  iframeFallback: {
+    fontSize: 14,
+    color: '#888',
+    textAlign: 'center',
+    paddingVertical: 40,
   },
 });

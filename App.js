@@ -9,7 +9,6 @@ import MapScreen from './src/screens/MapScreen';
 import ScanScreen from './src/screens/ScanScreen';
 import WalletScreen from './src/screens/WalletScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
-import LiveScreen from './src/screens/LiveScreen';
 import NetworkGate from './src/components/NetworkGate';
 
 const Tab = createBottomTabNavigator();
@@ -77,14 +76,6 @@ export default function App() {
             }}
           >
             {() => <WalletScreen appData={appData} />}
-          </Tab.Screen>
-          <Tab.Screen
-            name="Live"
-            options={{
-              tabBarIcon: ({ focused }) => <TabIcon emoji="📊" focused={focused} />,
-            }}
-          >
-            {() => <LiveScreen />}
           </Tab.Screen>
           <Tab.Screen
             name="Profile"
