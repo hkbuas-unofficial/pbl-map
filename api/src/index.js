@@ -2,7 +2,7 @@
 // Bind D1 database as "DB" in wrangler.toml
 
 const ADMIN_PASSWORD = 'pbl5**';
-const SESSION_TIMEOUT_MINUTES = 2; // sessions stale after 2 min of no ping
+const SESSION_TIMEOUT_MINUTES = 2;
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -35,9 +35,6 @@ export default {
       if (path === '/api/session/start' && request.method === 'POST') {
         return await handleSessionStart(request, db);
       }
-      if (path === '/api/session/ping' && request.method === 'POST') {
-        return await handleSessionPing(request, db);
-      }
       if (path === '/api/session/end' && request.method === 'POST') {
         return await handleSessionEnd(request, db);
       }
@@ -69,7 +66,6 @@ async function handleTrack(request, db) {
     return jsonResponse({ error: 'Missing device_id or event_type' }, 400);
   }
 
-  // Upsert user
   await db
     .prepare(
       `INSERT INTO users (device_id, last_seen, total_stamps, redemptions)
@@ -79,7 +75,6 @@ async function handleTrack(request, db) {
     .bind(device_id)
     .run();
 
-  // Insert event
   await db
     .prepare(
       `INSERT INTO events (device_id, event_type, booth_id, metadata)
@@ -93,7 +88,6 @@ async function handleTrack(request, db) {
     )
     .run();
 
-  // Update user stats
   if (event_type === 'stamp_earned') {
     await db
       .prepare(`UPDATE users SET total_stamps = total_stamps + 1 WHERE device_id = ?`)
@@ -128,25 +122,12 @@ async function handleSessionStart(request, db) {
     .bind(device_id)
     .run();
 
-  // Also ensure user record exists
   await db
     .prepare(
       `INSERT INTO users (device_id, last_seen, total_stamps, redemptions)
        VALUES (?, datetime('now'), 0, 0)
        ON CONFLICT(device_id) DO UPDATE SET last_seen = datetime('now')`
     )
-    .bind(device_id)
-    .run();
-
-  return jsonResponse({ success: true });
-}
-
-async function handleSessionPing(request, db) {
-  const { device_id } = await request.json();
-  if (!device_id) return jsonResponse({ error: 'Missing device_id' }, 400);
-
-  await db
-    .prepare(`UPDATE sessions SET last_ping = datetime('now') WHERE device_id = ?`)
     .bind(device_id)
     .run();
 
@@ -162,7 +143,7 @@ async function handleSessionEnd(request, db) {
 }
 
 async function handleStats(db) {
-  // Clean up stale sessions first
+  // Clean up stale sessions
   await db
     .prepare(
       `DELETE FROM sessions WHERE last_ping < datetime('now', '-${SESSION_TIMEOUT_MINUTES} minutes')`
@@ -223,13 +204,11 @@ async function handleStats(db) {
 }
 
 async function getVisitorGraph(db) {
-  // 20 hours = 80 buckets of 15 minutes
   const buckets = [];
   const now = new Date();
   const ms15min = 15 * 60 * 1000;
   const totalBuckets = 80;
 
-  // Build time bucket labels (UTC), going back 20 hours
   for (let i = totalBuckets - 1; i >= 0; i--) {
     const t = new Date(now.getTime() - i * ms15min);
     t.setUTCSeconds(0, 0);
@@ -241,8 +220,6 @@ async function getVisitorGraph(db) {
     });
   }
 
-  // Count unique visitors per bucket using session starts or first event in window
-  // We'll use events: count unique device_ids whose first event in that bucket window
   const startTime = new Date(now.getTime() - totalBuckets * ms15min).toISOString();
 
   const rows = await db
@@ -263,7 +240,6 @@ async function getVisitorGraph(db) {
     countsByBucket[r.bucket] = r.count;
   }
 
-  // Map counts to our buckets
   for (const b of buckets) {
     const bucketKey = b.iso.slice(0, 16) + ':00';
     b.count = countsByBucket[bucketKey] || 0;

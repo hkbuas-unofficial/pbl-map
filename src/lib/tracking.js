@@ -40,7 +40,8 @@ export async function trackEvent(eventType, { deviceId = null, boothId = null, m
   }
 }
 
-// Session tracking for real-time active users
+// Session tracking — NO heartbeat to save D1 writes
+// Only writes on session start and session end
 export async function startSession(deviceId = null) {
   try {
     const id = deviceId || await getDeviceId();
@@ -50,19 +51,17 @@ export async function startSession(deviceId = null) {
   }
 }
 
-export async function pingSession(deviceId = null) {
-  try {
-    const id = deviceId || await getDeviceId();
-    await postJson('/api/session/ping', { device_id: id });
-  } catch (e) {
-    console.log('Session ping error:', e.message);
-  }
-}
-
 export async function endSession(deviceId = null) {
   try {
     const id = deviceId || await getDeviceId();
-    await postJson('/api/session/end', { device_id: id });
+    // Use sendBeacon for reliable delivery on page unload
+    const url = `${API_BASE}/api/session/end`;
+    const body = JSON.stringify({ device_id: id });
+    if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
+      navigator.sendBeacon(url, new Blob([body], { type: 'application/json' }));
+    } else {
+      await postJson('/api/session/end', { device_id: id });
+    }
   } catch (e) {
     console.log('Session end error:', e.message);
   }
