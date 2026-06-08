@@ -10,57 +10,21 @@ import {
 } from 'react-native';
 
 const ADMIN_PASSWORD = 'pbl5**';
-const EXPECTED_SSID = 'GUEST@ASCHOOL';
+const ALLOWED_IP = '101.78.190.2';
 
-// Try to discover local IP addresses via WebRTC
-function getLocalIPs() {
-  return new Promise((resolve) => {
-    if (typeof RTCPeerConnection === 'undefined') {
-      resolve([]);
-      return;
-    }
-    const ips = [];
-    const pc = new RTCPeerConnection({ iceServers: [] });
-    pc.createDataChannel('');
-    pc.createOffer()
-      .then((o) => pc.setLocalDescription(o))
-      .catch(() => resolve([]));
-
-    pc.onicecandidate = (ice) => {
-      if (!ice || !ice.candidate || !ice.candidate.candidate) {
-        pc.close();
-        resolve(ips);
-        return;
-      }
-      const ipMatch = /([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})/.exec(
-        ice.candidate.candidate
-      );
-      if (ipMatch && !ips.includes(ipMatch[1])) {
-        ips.push(ipMatch[1]);
-      }
-    };
-    setTimeout(() => {
-      try { pc.close(); } catch (e) {}
-      resolve(ips);
-    }, 1500);
-  });
-}
-
-function isPrivateIP(ip) {
-  const parts = ip.split('.').map(Number);
-  if (parts.length !== 4) return false;
-  // 10.0.0.0/8
-  if (parts[0] === 10) return true;
-  // 172.16.0.0/12
-  if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true;
-  // 192.168.0.0/16
-  if (parts[0] === 192 && parts[1] === 168) return true;
-  return false;
+async function getPublicIP() {
+  try {
+    const res = await fetch('https://api.ipify.org?format=json', { timeout: 5000 });
+    const data = await res.json();
+    return data.ip;
+  } catch (e) {
+    return null;
+  }
 }
 
 export default function NetworkGate({ children }) {
   const [status, setStatus] = useState('checking'); // 'checking' | 'allowed' | 'blocked'
-  const [localIPs, setLocalIPs] = useState([]);
+  const [detectedIP, setDetectedIP] = useState(null);
   const [showAdmin, setShowAdmin] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
   const [passwordError, setPasswordError] = useState(false);
@@ -75,27 +39,15 @@ export default function NetworkGate({ children }) {
       return;
     }
 
-    // Try WebRTC local IP discovery
-    const ips = await getLocalIPs();
-    setLocalIPs(ips);
+    // Fetch public IP and check against allowed IP
+    const ip = await getPublicIP();
+    setDetectedIP(ip);
 
-    // If we found any private IP, user is likely on a local network
-    const hasPrivateIP = ips.some(isPrivateIP);
-
-    if (hasPrivateIP) {
+    if (ip === ALLOWED_IP) {
       setStatus('allowed');
       return;
     }
 
-    // Fallback: on mobile web, WebRTC might be restricted.
-    // If we have ANY local IP at all (even non-private), that's a strong signal
-    // they're on a real network (not just cellular data without WiFi)
-    if (ips.length > 0) {
-      setStatus('allowed');
-      return;
-    }
-
-    // Could not verify — show gate
     setStatus('blocked');
   }, []);
 
@@ -124,29 +76,27 @@ export default function NetworkGate({ children }) {
         <Text style={styles.icon}>📡</Text>
         <Text style={styles.title}>Network Required</Text>
         <Text style={styles.message}>
-          Please connect to the
+          Please connect to the school WiFi to use this app.
         </Text>
-        <Text style={styles.ssid}>{EXPECTED_SSID}</Text>
-        <Text style={styles.message}>WiFi network to use this app.</Text>
 
         {status === 'checking' && (
           <View style={styles.checkingRow}>
             <ActivityIndicator color="#3498db" />
-            <Text style={styles.checkingText}>Checking connection...</Text>
+            <Text style={styles.checkingText}>Checking your network...</Text>
           </View>
         )}
 
         {status === 'blocked' && (
           <>
+            <View style={styles.ipBox}>
+              <Text style={styles.ipLabel}>Your IP:</Text>
+              <Text style={styles.ipValue}>{detectedIP || 'Unknown'}</Text>
+              <Text style={styles.ipExpected}>Required: {ALLOWED_IP}</Text>
+            </View>
+
             <TouchableOpacity style={styles.checkBtn} onPress={checkNetwork}>
               <Text style={styles.checkBtnText}>Check Again</Text>
             </TouchableOpacity>
-
-            {localIPs.length > 0 && (
-              <Text style={styles.debugText}>
-                Found IPs: {localIPs.join(', ')}
-              </Text>
-            )}
 
             {!showAdmin ? (
               <TouchableOpacity
@@ -225,11 +175,28 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 22,
   },
-  ssid: {
+  ipBox: {
+    marginTop: 20,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    width: '100%',
+  },
+  ipLabel: {
+    fontSize: 13,
+    color: '#888',
+  },
+  ipValue: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#3498db',
-    marginVertical: 6,
+    color: '#e74c3c',
+    marginTop: 4,
+  },
+  ipExpected: {
+    fontSize: 13,
+    color: '#27ae60',
+    marginTop: 4,
   },
   checkingRow: {
     flexDirection: 'row',
@@ -252,11 +219,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
-  },
-  debugText: {
-    marginTop: 12,
-    fontSize: 11,
-    color: '#aaa',
   },
   adminLink: {
     marginTop: 20,
