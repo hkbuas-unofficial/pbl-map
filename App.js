@@ -9,7 +9,6 @@ import MapScreen from './src/screens/MapScreen';
 import ScanScreen from './src/screens/ScanScreen';
 import WalletScreen from './src/screens/WalletScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
-import NetworkGate from './src/components/NetworkGate';
 
 const Tab = createBottomTabNavigator();
 
@@ -40,8 +39,7 @@ export default function App() {
   }
 
   return (
-    <NetworkGate>
-      <NavigationContainer>
+    <NavigationContainer>
         <Tab.Navigator
           screenOptions={{
             headerShown: false,
@@ -87,7 +85,6 @@ export default function App() {
           </Tab.Screen>
         </Tab.Navigator>
       </NavigationContainer>
-    </NetworkGate>
   );
 }
 
