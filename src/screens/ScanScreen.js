@@ -12,12 +12,13 @@ import {
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import QuizScreen from './QuizScreen';
 import { capture } from '../lib/posthog';
+import { extractBoothId } from '../lib/qrParser';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 const SCAN_SIZE = Math.min(SCREEN_W, SCREEN_H) * 0.65;
 const IS_WEB = Platform.OS === 'web';
 
-export default function ScanScreen({ appData }) {
+export default function ScanScreen({ appData, initialBoothId }) {
   const { booths, hasStamp, isLockedOut } = appData;
 
   const [permission, requestPermission] = useCameraPermissions();
@@ -35,6 +36,13 @@ export default function ScanScreen({ appData }) {
   const streamRef = useRef(null);
   const qrScannerRef = useRef(null);
   const animFrameRef = useRef(null);
+
+  // Handle deep link booth ID on mount
+  useEffect(() => {
+    if (initialBoothId) {
+      processScannedData(initialBoothId);
+    }
+  }, [initialBoothId]);
 
   // Animate scan line
   useEffect(() => {
@@ -61,7 +69,15 @@ export default function ScanScreen({ appData }) {
     if (scanned || showQuiz) return;
     setScanned(true);
 
-    const boothId = String(data).trim().toUpperCase();
+    const boothId = extractBoothId(data);
+    if (!boothId) {
+      setErrorMsg('Invalid QR code');
+      setTimeout(() => {
+        setErrorMsg(null);
+        setScanned(false);
+      }, 2000);
+      return;
+    }
     const booth = booths.find(b => b.booth_id === boothId);
 
     if (!booth) {

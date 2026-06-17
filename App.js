@@ -1,9 +1,10 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Text, View, StyleSheet, Platform } from 'react-native';
 import { useAppData } from './src/hooks/useAppData';
 import { initPostHog } from './src/lib/posthog';
+import { extractBoothId } from './src/lib/qrParser';
 
 import MapScreen from './src/screens/MapScreen';
 import ScanScreen from './src/screens/ScanScreen';
@@ -22,11 +23,19 @@ function TabIcon({ emoji, focused }) {
 
 export default function App() {
   const appData = useAppData();
+  const [initialBoothId, setInitialBoothId] = useState(null);
 
   // Initialize PostHog analytics on web
   useEffect(() => {
     if (Platform.OS === 'web') {
       initPostHog();
+      // Check if opened via deep link with booth ID
+      if (typeof window !== 'undefined' && window.location.href) {
+        const boothId = extractBoothId(window.location.href);
+        if (boothId) {
+          setInitialBoothId(boothId);
+        }
+      }
     }
   }, []);
 
@@ -41,6 +50,7 @@ export default function App() {
   return (
     <NavigationContainer>
         <Tab.Navigator
+          initialRouteName={initialBoothId ? 'Scan' : 'Map'}
           screenOptions={{
             headerShown: false,
             tabBarStyle: styles.tabBar,
@@ -64,7 +74,7 @@ export default function App() {
               tabBarIcon: ({ focused }) => <TabIcon emoji="📷" focused={focused} />,
             }}
           >
-            {() => <ScanScreen appData={appData} />}
+            {() => <ScanScreen appData={appData} initialBoothId={initialBoothId} />}
           </Tab.Screen>
           <Tab.Screen
             name="My Stamps"
