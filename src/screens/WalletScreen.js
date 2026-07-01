@@ -81,7 +81,6 @@ export default function WalletScreen({ appData }) {
   // Calculate grid layout: aim for roughly square-ish grid
   // If cardSlots = 3 → 1 row of 3, or stack vertically on narrow screens
   // We use a vertical stack (column) approach for the stamp card
-  const isNarrow = SCREEN_W < 360;
 
   return (
     <View style={styles.container}>
@@ -93,7 +92,7 @@ export default function WalletScreen({ appData }) {
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         {/* Stamp Card - vertical stack, always fits */}
         <View style={styles.stampCardContainer}>
-          <View style={[styles.stampCard, isNarrow && styles.stampCardNarrow]}>
+          <View style={styles.stampCard}>
             {/* Stamp slots in a 2-column grid */}
             <View style={styles.stampGrid}>
               {items.map((item, index) => {
@@ -288,8 +287,7 @@ export default function WalletScreen({ appData }) {
   );
 }
 
-const CARD_W = Math.min(200, SCREEN_W - 48);
-const SLOT_SIZE = Math.min(80, (CARD_W - 32 - 12) / 2);
+const SLOT_SIZE = 80;
 
 const styles = StyleSheet.create({
   container: {
@@ -321,13 +319,14 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 40,
   },
-  // Stamp Card - vertical stack
+  // Stamp Card - horizontal wrap
   stampCardContainer: {
-    alignItems: 'center',
+    alignItems: 'stretch',
     marginBottom: 20,
+    paddingHorizontal: 16,
   },
   stampCard: {
-    width: CARD_W,
+    width: '100%',
     backgroundColor: '#fff',
     borderRadius: 16,
     padding: 16,
@@ -338,9 +337,6 @@ const styles = StyleSheet.create({
     elevation: 3,
     borderWidth: 1,
     borderColor: '#e0e0e0',
-  },
-  stampCardNarrow: {
-    width: Math.min(160, SCREEN_W - 48),
   },
   stampGrid: {
     flexDirection: 'row',
