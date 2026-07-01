@@ -1,9 +1,8 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 
-const PIN_SIZE = 36;
-const FONT_SIZE = 14;
-const LABEL_FONT = 10;
+export const PIN_SIZE = 56;
+const FONT_SIZE = 22;
 
 export default function BoothPin({ booth, hasStamp, onPress }) {
   return (
@@ -19,14 +18,10 @@ export default function BoothPin({ booth, hasStamp, onPress }) {
         ]}
       >
         <Text style={styles.pinText}>
-          {hasStamp ? '✓' : booth.booth_id}
+          {hasStamp ? '✓' : (booth.display_id || booth.booth_id)}
         </Text>
       </View>
-      <View style={styles.labelContainer}>
-        <Text style={styles.label}>
-          {booth.booth_name}
-        </Text>
-      </View>
+
     </TouchableOpacity>
   );
 }
@@ -34,16 +29,15 @@ export default function BoothPin({ booth, hasStamp, onPress }) {
 const styles = StyleSheet.create({
   pinContainer: {
     alignItems: 'center',
+    justifyContent: 'center',
   },
   pin: {
     width: PIN_SIZE,
     height: PIN_SIZE,
     borderRadius: PIN_SIZE / 2,
-    backgroundColor: '#e74c3c',
+    backgroundColor: '#FD919E',
     justifyContent: 'center',
     alignItems: 'center',
-    borderColor: '#fff',
-    borderWidth: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.5,
@@ -58,16 +52,5 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE,
     fontWeight: 'bold',
   },
-  labelContainer: {
-    backgroundColor: 'rgba(0,0,0,0.75)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    marginTop: 3,
-  },
-  label: {
-    color: '#fff',
-    fontSize: LABEL_FONT,
-    fontWeight: '700',
-  },
+
 });

@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PBL Map Coordinate Editor</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: #f5f5f5;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+    .toolbar {
+      background: #fff;
+      border-bottom: 1px solid #e0e0e0;
+      padding: 12px 16px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      z-index: 100;
+    }
+    .toolbar h1 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: bold;
+      color: #333;
+      margin-right: auto;
+    }
+    .toolbar button {
+      background: #3498db;
+      color: #fff;
+      border: none;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .toolbar button:hover {
+      background: #2980b9;
+    }
+    .toolbar button.secondary {
+      background: #95a5a6;
+    }
+    .toolbar button.secondary:hover {
+      background: #7f8c8d;
+    }
+    .toolbar .hint {
+      font-size: 12px;
+      color: #888;
+      width: 100%;
+      margin-top: 4px;
+    }
+    .toolbar .status {
+      font-size: 12px;
+      color: #27ae60;
+      font-weight: 600;
+      margin-left: auto;
+    }
+    .editor {
+      flex: 1;
+      overflow: auto;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 20px;
+      position: relative;
+    }
+    .map-container {
+      position: relative;
+      user-select: none;
+      touch-action: none;
+    }
+    .map-container img {
+      display: block;
+      max-width: none;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    }
+    .pin {
+      position: absolute;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: #FD919E;
+      color: #fff;
+      font-size: 13px;
+      font-weight: bold;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: grab;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      border: 2px solid #fff;
+    }
+    .pin:active {
+      cursor: grabbing;
+      background: #ff6b7d;
+    }
+    .pin.selected {
+      box-shadow: 0 0 0 4px rgba(253, 145, 158, 0.4);
+    }
+    .pin-label {
+      position: absolute;
+      top: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.75);
+      color: #fff;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+    .sidebar {
+      width: 220px;
+      background: #fff;
+      border-left: 1px solid #e0e0e0;
+      padding: 16px;
+      overflow-y: auto;
+    }
+    .sidebar h2 {
+      margin: 0 0 12px 0;
+      font-size: 14px;
+      color: #333;
+    }
+    .coord-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid #f0f0f0;
+      font-size: 12px;
+    }
+    .coord-row:last-child {
+      border-bottom: none;
+    }
+    .coord-row .name {
+      font-weight: 600;
+      color: #333;
+    }
+    .coord-row .value {
+      color: #666;
+      font-family: monospace;
+    }
+    @media (max-width: 768px) {
+      body {
+        height: auto;
+        min-height: 100vh;
+      }
+      .editor {
+        flex-direction: column;
+        align-items: center;
+      }
+      .sidebar {
+        width: 100%;
+        border-left: none;
+        border-top: 1px solid #e0e0e0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <h1>🗺️ PBL Map Coordinate Editor</h1>
+    <button onclick="resetPositions()">Reset</button>
+    <button onclick="saveCoordinates()">💾 Save to txt</button>
+    <button class="secondary" onclick="copyToClipboard()">📋 Copy</button>
+    <div class="status" id="status"></div>
+    <div class="hint">Drag pins to the correct locations, then save or copy the coordinates.</div>
+  </div>
+
+  <div class="editor">
+    <div class="map-container" id="mapContainer">
+      <img id="mapImage" src="../assets/map/venue_map.jpg" alt="PBL Map" draggable="false">
+      <div id="pinsLayer"></div>
+    </div>
+  </div>
+
+  <div class="sidebar">
+    <h2>Coordinates (%)</h2>
+    <div id="coordsList"></div>
+  </div>
+
+  <script>
+    // Match this data with src/data/demoBooths.js
+    const booths = [
+      { id: 'G1', display: '1', name: 'Unsung Neighbourhood Heroes', x: 71, y: 42 },
+      { id: 'G2', display: '2', name: 'Animal Habitats', x: 76, y: 45 },
+      { id: 'G3', display: '3', name: 'Cultural Connections', x: 82, y: 42 },
+      { id: 'G4', display: '4', name: 'Climate Change', x: 89, y: 42 },
+      { id: 'G5', display: '5', name: 'Entrepreneurship', x: 81, y: 55 },
+      { id: 'G6', display: '6', name: 'STEAM Projects', x: 76, y: 35 },
+      { id: 'E',  display: '7', name: 'PS Excursion Groups', x: 84, y: 32 },
+    ];
+
+    const initialCoordinates = booths.map(b => ({ id: b.id, x: b.x, y: b.y }));
+    let currentCoordinates = booths.map(b => ({ id: b.id, x: b.x, y: b.y }));
+
+    const mapImage = document.getElementById('mapImage');
+    const pinsLayer = document.getElementById('pinsLayer');
+    const coordsList = document.getElementById('coordsList');
+
+    let isDragging = false;
+    let dragPin = null;
+    let dragOffset = { x: 0, y: 0 };
+
+    function renderPins() {
+      pinsLayer.innerHTML = '';
+      currentCoordinates.forEach((coord, index) => {
+        const booth = booths.find(b => b.id === coord.id);
+        const pin = document.createElement('div');
+        pin.className = 'pin';
+        pin.dataset.id = coord.id;
+        pin.style.left = coord.x + '%';
+        pin.style.top = coord.y + '%';
+        pin.innerHTML = `${booth.display}<div class="pin-label">${booth.id}</div>`;
+
+        pin.addEventListener('mousedown', startDrag);
+        pin.addEventListener('touchstart', startDrag, { passive: false });
+
+        pinsLayer.appendChild(pin);
+      });
+      renderCoordsList();
+    }
+
+    function renderCoordsList() {
+      coordsList.innerHTML = '';
+      currentCoordinates.forEach(coord => {
+        const booth = booths.find(b => b.id === coord.id);
+        const row = document.createElement('div');
+        row.className = 'coord-row';
+        row.innerHTML = `<span class="name">${booth.display} (${booth.id})</span><span class="value">${coord.x.toFixed(2)}, ${coord.y.toFixed(2)}</span>`;
+        coordsList.appendChild(row);
+      });
+    }
+
+    function getEventPos(e) {
+      if (e.touches && e.touches.length > 0) {
+        return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      }
+      return { x: e.clientX, y: e.clientY };
+    }
+
+    function startDrag(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      isDragging = true;
+      dragPin = e.currentTarget;
+      dragPin.classList.add('selected');
+
+      const rect = mapImage.getBoundingClientRect();
+      const pos = getEventPos(e);
+      dragOffset.x = pos.x - rect.left;
+      dragOffset.y = pos.y - rect.top;
+    }
+
+    function onDrag(e) {
+      if (!isDragging || !dragPin) return;
+      e.preventDefault();
+
+      const rect = mapImage.getBoundingClientRect();
+      const pos = getEventPos(e);
+
+      let x = pos.x - rect.left;
+      let y = pos.y - rect.top;
+
+      // Clamp to image bounds
+      x = Math.max(0, Math.min(rect.width, x));
+      y = Math.max(0, Math.min(rect.height, y));
+
+      const pctX = (x / rect.width) * 100;
+      const pctY = (y / rect.height) * 100;
+
+      dragPin.style.left = pctX + '%';
+      dragPin.style.top = pctY + '%';
+
+      const id = dragPin.dataset.id;
+      const coord = currentCoordinates.find(c => c.id === id);
+      if (coord) {
+        coord.x = pctX;
+        coord.y = pctY;
+      }
+
+      renderCoordsList();
+    }
+
+    function endDrag() {
+      if (dragPin) {
+        dragPin.classList.remove('selected');
+      }
+      isDragging = false;
+      dragPin = null;
+    }
+
+    function generateOutput() {
+      let output = 'PBL Map Coordinates\n';
+      output += 'Generated: ' + new Date().toISOString() + '\n';
+      output += '================================\n\n';
+
+      currentCoordinates.forEach(coord => {
+        const booth = booths.find(b => b.id === coord.id);
+        output += `${booth.display} (${coord.id}): x=${coord.x.toFixed(2)}, y=${coord.y.toFixed(2)}  // ${booth.name}\n`;
+      });
+
+      output += '\n--- JSON (copy into src/data/demoBooths.js) ---\n';
+      const json = currentCoordinates.map(coord => ({
+        booth_id: coord.id,
+        booth_x: parseFloat(coord.x.toFixed(2)),
+        booth_y: parseFloat(coord.y.toFixed(2)),
+      }));
+      output += JSON.stringify(json, null, 2);
+
+      return output;
+    }
+
+    function showStatus(message) {
+      const status = document.getElementById('status');
+      status.textContent = message;
+      setTimeout(() => {
+        status.textContent = '';
+      }, 3000);
+    }
+
+    function saveCoordinates() {
+      const output = generateOutput();
+      const blob = new Blob([output], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'pbl-map-coordinates.txt';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showStatus('Downloads ready');
+    }
+
+    function copyToClipboard() {
+      const output = generateOutput();
+      navigator.clipboard.writeText(output).then(() => {
+        showStatus('Copied to clipboard');
+      }).catch(() => {
+        alert('Failed to copy. Use Save to txt instead.');
+      });
+    }
+
+    function resetPositions() {
+      currentCoordinates = initialCoordinates.map(c => ({ ...c }));
+      renderPins();
+    }
+
+    window.addEventListener('mousemove', onDrag);
+    window.addEventListener('mouseup', endDrag);
+    window.addEventListener('touchmove', onDrag, { passive: false });
+    window.addEventListener('touchend', endDrag);
+
+    // Re-render pins if image loads after script runs
+    mapImage.onload = renderPins;
+    if (mapImage.complete) renderPins();
+  </script>
+</body>
+</html>

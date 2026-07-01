@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   Platform,
 } from 'react-native';
-import BoothPin from '../components/BoothPin';
+import BoothPin, { PIN_SIZE } from '../components/BoothPin';
 import BoothDetailModal from '../components/BoothDetailModal';
 import { capture } from '../lib/posthog';
 
@@ -17,8 +17,8 @@ const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 const HEADER_H = 72;
 
 // Actual map image dimensions
-const MAP_IMG_W = 3800;
-const MAP_IMG_H = 3109;
+const MAP_IMG_W = 1600;
+const MAP_IMG_H = 1131;
 
 export default function MapScreen({ appData, navigation }) {
   const { booths, hasStamp, isLockedOut, getRemainingAttempts, getStampCount, deviceId } = appData;
@@ -338,16 +338,6 @@ export default function MapScreen({ appData, navigation }) {
         ],
       };
 
-  // Calculate pin positions in screen coordinates
-  // Each booth has booth_x, booth_y as percentages (0-100)
-  const getPinScreenPos = (booth) => {
-    const mapPixelX = (booth.booth_x / 100) * MAP_IMG_W;
-    const mapPixelY = (booth.booth_y / 100) * MAP_IMG_H;
-    const screenX = mapPixelX * scale + translateX;
-    const screenY = mapPixelY * scale + translateY;
-    return { x: screenX, y: screenY };
-  };
-
   const initialScale = getInitialScale(MAP_IMG_W, MAP_IMG_H);
 
   return (
@@ -380,42 +370,31 @@ export default function MapScreen({ appData, navigation }) {
               }}
               resizeMode="stretch"
             />
-          </View>
-        </View>
 
-        {/* Pins overlay - positioned in screen coordinates, NOT scaled */}
-        <View style={styles.pinsOverlay} pointerEvents="box-none">
-          {booths.map((booth) => {
-            const pos = getPinScreenPos(booth);
-            // Only show pins that are within or near the visible area
-            const margin = 100;
-            if (
-              pos.x < -margin ||
-              pos.x > MAP_AREA_W + margin ||
-              pos.y < -margin ||
-              pos.y > MAP_AREA_H + margin
-            ) {
-              return null;
-            }
-            return (
-              <View
-                key={booth.booth_id}
-                style={[
-                  styles.pinWrapper,
-                  {
-                    left: pos.x,
-                    top: pos.y,
-                  },
-                ]}
-              >
-                <BoothPin
-                  booth={booth}
-                  hasStamp={hasStamp(booth.booth_id)}
-                  onPress={() => handlePinPress(booth)}
-                />
-              </View>
-            );
-          })}
+            {/* Pins layer - transforms with the map */}
+            {booths.map((booth) => {
+              const mapPixelX = (booth.booth_x / 100) * MAP_IMG_W;
+              const mapPixelY = (booth.booth_y / 100) * MAP_IMG_H;
+              return (
+                <View
+                  key={booth.booth_id}
+                  style={[
+                    styles.pinWrapper,
+                    {
+                      left: mapPixelX,
+                      top: mapPixelY,
+                    },
+                  ]}
+                >
+                  <BoothPin
+                    booth={booth}
+                    hasStamp={hasStamp(booth.booth_id)}
+                    onPress={() => handlePinPress(booth)}
+                  />
+                </View>
+              );
+            })}
+          </View>
         </View>
 
         {/* Stats overlay - bottom right */}
@@ -493,13 +472,9 @@ const styles = StyleSheet.create({
     height: MAP_IMG_H,
     transformOrigin: 'top left',
   },
-  pinsOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 10,
-  },
   pinWrapper: {
     position: 'absolute',
-    transform: [{ translateX: -18 }, { translateY: -18 }], // center the pin
+    transform: [{ translateX: -(PIN_SIZE / 2) }, { translateY: -(PIN_SIZE / 2) }], // center the pin
     zIndex: 11,
   },
   statsOverlay: {

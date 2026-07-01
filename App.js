@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Text, View, StyleSheet, Platform } from 'react-native';
+import { Text, View, StyleSheet, Platform, Animated, Easing } from 'react-native';
 import { useAppData } from './src/hooks/useAppData';
 import { initPostHog } from './src/lib/posthog';
 import { extractBoothId } from './src/lib/qrParser';
@@ -18,6 +18,62 @@ function TabIcon({ emoji, focused }) {
     <View style={[styles.iconBox, focused && styles.iconBoxFocused]}>
       <Text style={styles.iconText}>{emoji}</Text>
     </View>
+  );
+}
+
+function StampTabIcon({ emoji, focused, showNotification }) {
+  const shakeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!showNotification) {
+      shakeAnim.setValue(0);
+      return;
+    }
+
+    // Continuous wiggle/shake animation
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(shakeAnim, {
+          toValue: 1,
+          duration: 150,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        }),
+        Animated.timing(shakeAnim, {
+          toValue: -1,
+          duration: 150,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        }),
+        Animated.timing(shakeAnim, {
+          toValue: 0,
+          duration: 100,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        }),
+        Animated.delay(500),
+      ])
+    );
+
+    animation.start();
+    return () => {
+      animation.stop();
+      shakeAnim.setValue(0);
+    };
+  }, [showNotification]);
+
+  const rotate = shakeAnim.interpolate({
+    inputRange: [-1, 1],
+    outputRange: ['-15deg', '15deg'],
+  });
+
+  return (
+    <Animated.View style={[styles.iconBox, focused && styles.iconBoxFocused, { transform: [{ rotate }] }]}>
+      <Text style={styles.iconText}>{emoji}</Text>
+      {showNotification && (
+        <View style={styles.notificationDot} />
+      )}
+    </Animated.View>
   );
 }
 
@@ -79,8 +135,13 @@ export default function App() {
           <Tab.Screen
             name="My Stamps"
             options={{
-              tabBarIcon: ({ focused }) => <TabIcon emoji="🏆" focused={focused} />,
-              tabBarBadge: appData.getStampCount() > 0 ? appData.getStampCount() : undefined,
+              tabBarIcon: ({ focused }) => (
+                <StampTabIcon
+                  emoji="🏆"
+                  focused={focused}
+                  showNotification={appData.canRedeem()}
+                />
+              ),
             }}
           >
             {() => <WalletScreen appData={appData} />}
@@ -135,5 +196,16 @@ const styles = StyleSheet.create({
   },
   iconText: {
     fontSize: 20,
+  },
+  notificationDot: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#e74c3c',
+    borderWidth: 1.5,
+    borderColor: '#fff',
   },
 });
