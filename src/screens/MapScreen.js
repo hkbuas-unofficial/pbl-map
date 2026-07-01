@@ -17,8 +17,8 @@ const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 const HEADER_H = 72;
 
 // Actual map image dimensions
-const MAP_IMG_W = 1600;
-const MAP_IMG_H = 1131;
+const MAP_IMG_W = 2000;
+const MAP_IMG_H = 1414;
 
 export default function MapScreen({ appData, navigation }) {
   const { booths, hasStamp, isLockedOut, getRemainingAttempts, getStampCount, deviceId } = appData;
