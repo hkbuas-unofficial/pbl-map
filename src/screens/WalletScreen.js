@@ -35,10 +35,22 @@ export default function WalletScreen({ appData }) {
 
   const stampCount = getStampCount();
   const totalBooths = booths.length;
-  // Stamp card shows exactly REDEMPTION_COST slots (stamps needed to redeem)
-  const cardSlots = REDEMPTION_COST;
-  const filledSlots = Math.min(stampCount, cardSlots);
-  const showRedeemSlot = filledSlots >= cardSlots;
+
+  // Build stamp card items: groups of up to 3 stamps, with a redeem slot after each full group
+  const items = [];
+  let remaining = stampCount;
+  while (remaining > 0) {
+    const groupSize = Math.min(REDEMPTION_COST, remaining);
+    for (let i = 0; i < groupSize; i++) {
+      items.push({ type: 'stamp', filled: true });
+    }
+    remaining -= groupSize;
+    if (groupSize === REDEMPTION_COST) {
+      items.push({ type: 'redeem' });
+    }
+  }
+
+  const stampsUntilNextPrize = REDEMPTION_COST - (stampCount % REDEMPTION_COST);
 
   // Only completed (stamped) booths for history
   const completedBooths = booths.filter(b => hasStamp(b.booth_id));
@@ -82,34 +94,34 @@ export default function WalletScreen({ appData }) {
         {/* Stamp Card - vertical stack, always fits */}
         <View style={styles.stampCardContainer}>
           <View style={[styles.stampCard, isNarrow && styles.stampCardNarrow]}>
-            {/* Stamp slots stacked vertically */}
-            <View style={styles.stampStack}>
-              {Array.from({ length: cardSlots }).map((_, i) => {
-                const isFilled = i < filledSlots;
+            {/* Stamp slots in a 2-column grid */}
+            <View style={styles.stampGrid}>
+              {items.map((item, index) => {
+                if (item.type === 'redeem') {
+                  return (
+                    <TouchableOpacity key={`redeem-${index}`} style={styles.stampSlot} onPress={handleRedeem}>
+                      <Image
+                        source={STAMP_REDEEM_IMG}
+                        style={styles.stampImage}
+                        resizeMode="contain"
+                      />
+                    </TouchableOpacity>
+                  );
+                }
                 return (
-                  <View key={`slot-${i}`} style={styles.stampSlot}>
+                  <View key={`stamp-${index}`} style={styles.stampSlot}>
                     <Image
-                      source={isFilled ? STAMP_FILLED_IMG : STAMP_EMPTY_IMG}
+                      source={item.filled ? STAMP_FILLED_IMG : STAMP_EMPTY_IMG}
                       style={styles.stampImage}
                       resizeMode="contain"
                     />
                   </View>
                 );
               })}
-              {/* Redeem prize slot when all card slots are filled */}
-              {showRedeemSlot && (
-                <TouchableOpacity style={styles.stampSlot} onPress={handleRedeem}>
-                  <Image
-                    source={STAMP_REDEEM_IMG}
-                    style={styles.stampImage}
-                    resizeMode="contain"
-                  />
-                </TouchableOpacity>
-              )}
             </View>
           </View>
           <Text style={styles.stampCardLabel}>
-            {stampCount} / {cardSlots} stamps for next prize
+            {stampCount} stamps · {stampsUntilNextPrize} more for next prize
           </Text>
         </View>
 
@@ -277,7 +289,7 @@ export default function WalletScreen({ appData }) {
 }
 
 const CARD_W = Math.min(200, SCREEN_W - 48);
-const SLOT_SIZE = Math.min(80, (SCREEN_W - 80) / 3);
+const SLOT_SIZE = Math.min(80, (CARD_W - 32 - 12) / 2);
 
 const styles = StyleSheet.create({
   container: {
@@ -330,11 +342,14 @@ const styles = StyleSheet.create({
   stampCardNarrow: {
     width: Math.min(160, SCREEN_W - 48),
   },
-  stampStack: {
+  stampGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 12,
+    justifyContent: 'center',
   },
   stampSlot: {
-    width: '100%',
+    width: SLOT_SIZE,
     height: SLOT_SIZE,
     justifyContent: 'center',
     alignItems: 'center',
