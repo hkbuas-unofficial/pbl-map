@@ -13,8 +13,8 @@ import { capture } from '../lib/posthog';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
-export default function QuizScreen({ booth, onClose, appData }) {
-  const { addStamp, incrementAttempt, getRemainingAttempts } = appData;
+export default function QuizScreen({ booth, group, groupId, onClose, onFinish, appData }) {
+  const { addGroupStamp, incrementAttempt, getRemainingAttempts } = appData;
 
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [selectedOption, setSelectedOption] = useState(null);
@@ -26,20 +26,20 @@ export default function QuizScreen({ booth, onClose, appData }) {
   const [slideAnim] = useState(new Animated.Value(50));
   const [shakeAnim] = useState(new Animated.Value(0));
 
-  const remaining = getRemainingAttempts(booth.booth_id);
+  const remaining = getRemainingAttempts(groupId);
 
   const pickQuestion = useCallback(() => {
-    if (!booth || !booth.questions) return;
-    const availableIndices = booth.questions
+    if (!group || !group.questions) return;
+    const availableIndices = group.questions
       .map((_, i) => i)
       .filter(i => !questionHistory.includes(i));
     
-    const pool = availableIndices.length > 0 ? availableIndices : booth.questions.map((_, i) => i);
+    const pool = availableIndices.length > 0 ? availableIndices : group.questions.map((_, i) => i);
     const randomIdx = pool[Math.floor(Math.random() * pool.length)];
     
-    setCurrentQuestion({ ...booth.questions[randomIdx], _index: randomIdx });
+    setCurrentQuestion({ ...group.questions[randomIdx], _index: randomIdx });
     setQuestionHistory(prev => [...prev, randomIdx]);
-  }, [booth, questionHistory]);
+  }, [group, questionHistory]);
 
   useEffect(() => {
     setSelectedOption(null);
@@ -53,7 +53,7 @@ export default function QuizScreen({ booth, onClose, appData }) {
       Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
       Animated.timing(slideAnim, { toValue: 0, duration: 400, useNativeDriver: true }),
     ]).start();
-  }, [booth]);
+  }, [group]);
 
   const triggerShake = () => {
     Animated.sequence([
@@ -78,25 +78,33 @@ export default function QuizScreen({ booth, onClose, appData }) {
     setResult(isCorrect ? 'correct' : 'wrong');
 
     if (isCorrect) {
-      await addStamp(booth.booth_id);
-      capture('stamp_earned', { booth_id: booth.booth_id, booth_name: booth.booth_name });
+      await addGroupStamp(groupId);
+      capture('stamp_earned', { group_id: groupId, class_id: booth.booth_id, booth_name: booth.booth_name });
     } else {
-      const newCount = await incrementAttempt(booth.booth_id);
+      const newCount = await incrementAttempt(groupId);
       setTotalAttempts(newCount);
       triggerShake();
-      capture('quiz_wrong', { booth_id: booth.booth_id, booth_name: booth.booth_name, attempt: newCount });
+      capture('quiz_wrong', { group_id: groupId, class_id: booth.booth_id, booth_name: booth.booth_name, attempt: newCount });
     }
   };
 
   const handleNext = () => {
     if (result === 'correct') {
-      onClose();
+      if (onFinish) {
+        onFinish();
+      } else {
+        onClose();
+      }
       return;
     }
-    const newRemaining = getRemainingAttempts(booth.booth_id);
+    const newRemaining = getRemainingAttempts(groupId);
     if (newRemaining <= 0) {
-      capture('quiz_locked', { booth_id: booth.booth_id, booth_name: booth.booth_name });
-      onClose();
+      capture('quiz_locked', { group_id: groupId, class_id: booth.booth_id, booth_name: booth.booth_name });
+      if (onFinish) {
+        onFinish();
+      } else {
+        onClose();
+      }
       return;
     }
     // Next question
@@ -142,7 +150,7 @@ export default function QuizScreen({ booth, onClose, appData }) {
             <Text style={styles.boothName}>{booth.booth_name}</Text>
             <View style={styles.attemptBadge}>
               <Text style={styles.attemptBadgeText}>
-                Attempt {attemptNum} of 5
+                {booth.booth_id} · Group {group.group_id} · Attempt {attemptNum} of 5
               </Text>
             </View>
           </View>
@@ -214,7 +222,7 @@ export default function QuizScreen({ booth, onClose, appData }) {
                 <Text style={styles.resultIcon}>🎉</Text>
               </View>
               <Text style={styles.resultTitle}>Correct!</Text>
-              <Text style={styles.resultSub}>Stamp earned for {booth.booth_name}</Text>
+              <Text style={styles.resultSub}>Stamp earned for {booth.booth_name} Group {group.group_id}</Text>
             </View>
           )}
 
@@ -296,6 +304,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 16,
     elevation: 6,
+    alignSelf: 'center',
+    width: '100%',
+    maxWidth: 560,
   },
   header: {
     alignItems: 'center',
@@ -335,12 +346,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8f9fa',
     borderRadius: 20,
     padding: 20,
+    paddingHorizontal: 24,
     marginBottom: 24,
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 14,
     borderWidth: 1,
     borderColor: '#e8e8e8',
+    alignSelf: 'center',
+    width: '100%',
+    maxWidth: 520,
   },
   questionNumber: {
     width: 36,
@@ -363,8 +378,11 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   optionsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 12,
     marginBottom: 20,
+    justifyContent: 'space-between',
   },
   optionCard: {
     flexDirection: 'row',
@@ -380,6 +398,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 2,
     elevation: 1,
+    width: '48%',
   },
   optionSelected: {
     backgroundColor: '#e3f2fd',

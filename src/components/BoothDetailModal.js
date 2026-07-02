@@ -6,17 +6,21 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from 'react-native';
+import { GROUP_QUESTIONS } from '../data/groupQuestions';
 
 export default function BoothDetailModal({
   visible,
   booth,
   hasStamp,
-  remainingAttempts,
-  isLockedOut,
+  classProgress,
   onClose,
   onScanQR,
 }) {
   if (!booth) return null;
+
+  const { total, stamped } = classProgress || { total: 0, stamped: 0 };
+
+  const gradeGroups = Object.values(GROUP_QUESTIONS).filter(g => g.grade === booth.grade);
 
   return (
     <Modal
@@ -31,11 +35,10 @@ export default function BoothDetailModal({
           {/* Header row with close */}
           <View style={styles.cardHeader}>
             <View style={[styles.statusBadge, 
-              hasStamp ? styles.badgeGreen : 
-              isLockedOut ? styles.badgeRed : styles.badgeOrange
+              hasStamp ? styles.badgeGreen : styles.badgeOrange
             ]}>
               <Text style={styles.statusBadgeText}>
-                {hasStamp ? '✓ COLLECTED' : isLockedOut ? '🔒 LOCKED' : '○ NOT VISITED'}
+                {hasStamp ? '✓ COMPLETE' : `${stamped}/${total} GROUPS`}
               </Text>
             </View>
             <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
@@ -43,8 +46,8 @@ export default function BoothDetailModal({
             </TouchableOpacity>
           </View>
 
-          {/* Booth ID & Name */}
-          <Text style={styles.boothId}>BOOTH {booth.booth_id}</Text>
+          {/* Class ID & Name */}
+          <Text style={styles.boothId}>CLASS {booth.booth_id}</Text>
           <Text style={styles.boothName}>{booth.booth_name}</Text>
 
           {/* Location */}
@@ -55,15 +58,17 @@ export default function BoothDetailModal({
             </View>
           ) : null}
 
-          {/* Attempts remaining */}
-          {!hasStamp && !isLockedOut && (
-            <Text style={styles.attemptsText}>
-              {remainingAttempts} attempt{remainingAttempts !== 1 ? 's' : ''} remaining
-            </Text>
-          )}
+          {/* Group list preview */}
+          <View style={styles.groupsRow}>
+            {gradeGroups.map(group => (
+              <View key={group.groupId} style={styles.groupPill}>
+                <Text style={styles.groupPillText}>{group.classId.split(' ').pop()}-{group.groupName.replace('Group ', '')}</Text>
+              </View>
+            ))}
+          </View>
 
           {/* Action button */}
-          {!hasStamp && !isLockedOut && (
+          {!hasStamp && (
             <TouchableOpacity style={styles.scanBtn} onPress={onScanQR}>
               <Text style={styles.scanBtnText}>📷 Go Scan QR</Text>
             </TouchableOpacity>
@@ -71,13 +76,7 @@ export default function BoothDetailModal({
 
           {hasStamp && (
             <View style={styles.successRow}>
-              <Text style={styles.successText}>🏆 Stamp collected!</Text>
-            </View>
-          )}
-
-          {isLockedOut && (
-            <View style={styles.lockedRow}>
-              <Text style={styles.lockedText}>All attempts used</Text>
+              <Text style={styles.successText}>🏆 All groups complete!</Text>
             </View>
           )}
         </View>
@@ -121,9 +120,6 @@ const styles = StyleSheet.create({
   },
   badgeGreen: {
     backgroundColor: 'rgba(39,174,96,0.2)',
-  },
-  badgeRed: {
-    backgroundColor: 'rgba(231,76,60,0.2)',
   },
   badgeOrange: {
     backgroundColor: 'rgba(243,156,18,0.2)',
@@ -173,10 +169,22 @@ const styles = StyleSheet.create({
     color: '#bbb',
     flexShrink: 1,
   },
-  attemptsText: {
-    fontSize: 13,
-    color: '#888',
+  groupsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
     marginBottom: 16,
+  },
+  groupPill: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  groupPillText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
   },
   scanBtn: {
     backgroundColor: '#3498db',
@@ -197,17 +205,6 @@ const styles = StyleSheet.create({
   },
   successText: {
     color: '#27ae60',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  lockedRow: {
-    backgroundColor: 'rgba(231,76,60,0.15)',
-    paddingVertical: 12,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  lockedText: {
-    color: '#e74c3c',
     fontSize: 15,
     fontWeight: '600',
   },

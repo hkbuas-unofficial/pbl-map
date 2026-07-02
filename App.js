@@ -130,7 +130,7 @@ export default function App() {
               tabBarIcon: ({ focused }) => <TabIcon emoji="📷" focused={focused} />,
             }}
           >
-            {() => <ScanScreen appData={appData} initialBoothId={initialBoothId} />}
+            {(props) => <ScanScreen {...props} appData={appData} initialBoothId={initialBoothId} />}
           </Tab.Screen>
           <Tab.Screen
             name="My Stamps"

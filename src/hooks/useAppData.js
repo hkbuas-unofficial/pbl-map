@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DEMO_BOOTHS } from '../data/demoBooths';
+import { GROUP_QUESTIONS } from '../data/groupQuestions';
 
 const STORAGE_KEYS = {
   STAMPS: '@pbl_stamps',
@@ -12,15 +13,27 @@ const STORAGE_KEYS = {
 // Stamp requirements
 export const REDEMPTION_THRESHOLD = 3; // stamps needed to redeem
 export const REDEMPTION_COST = 3; // stamps deducted per redemption
-export const MAX_ATTEMPTS_PER_BOOTH = 5;
+export const MAX_ATTEMPTS_PER_GROUP = 5;
 
 export function useAppData() {
-  const [stamps, setStamps] = useState({}); // { booth_id: true }
-  const [attempts, setAttempts] = useState({}); // { booth_id: count }
+  const [stamps, setStamps] = useState({}); // { group_id: true }
+  const [attempts, setAttempts] = useState({}); // { group_id: count }
   const [redemptions, setRedemptions] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [booths] = useState(DEMO_BOOTHS);
+  const [booths] = useState(DEMO_BOOTHS); // grade pins
   const [deviceId, setDeviceId] = useState(null);
+
+  const allGroupIds = useCallback(() => Object.keys(GROUP_QUESTIONS), []);
+
+  const findGroup = useCallback((groupId) => {
+    return GROUP_QUESTIONS[groupId] || null;
+  }, []);
+
+  const getGradeGroupIds = useCallback((gradeId) => {
+    return Object.values(GROUP_QUESTIONS)
+      .filter(g => g.grade === gradeId)
+      .map(g => g.groupId);
+  }, []);
 
   // Load data from storage on mount
   useEffect(() => {
@@ -67,36 +80,52 @@ export function useAppData() {
     await AsyncStorage.setItem(STORAGE_KEYS.REDEMPTIONS, count.toString());
   };
 
-  // Stamp operations
-  const hasStamp = useCallback((boothId) => !!stamps[boothId], [stamps]);
+  // Group stamp operations
+  const hasGroupStamp = useCallback((groupId) => !!stamps[groupId], [stamps]);
   const getStampCount = useCallback(() => Object.keys(stamps).length, [stamps]);
 
-  const addStamp = async (boothId) => {
-    const newStamps = { ...stamps, [boothId]: true };
+  const addGroupStamp = async (groupId) => {
+    const newStamps = { ...stamps, [groupId]: true };
     await saveStamps(newStamps);
   };
 
-  // Attempt operations
-  const getAttemptCount = useCallback((boothId) => attempts[boothId] || 0, [attempts]);
+  // Grade completion: tick when ANY group in the grade is stamped
+  const isClassComplete = useCallback((gradeId) => {
+    const groupIds = getGradeGroupIds(gradeId);
+    return groupIds.some(id => stamps[id]);
+  }, [getGradeGroupIds, stamps]);
 
-  const incrementAttempt = async (boothId) => {
-    const newAttempts = { ...attempts, [boothId]: (attempts[boothId] || 0) + 1 };
+  const getClassProgress = useCallback((gradeId) => {
+    const groupIds = getGradeGroupIds(gradeId);
+    const stamped = groupIds.filter(id => stamps[id]).length;
+    return { total: groupIds.length, stamped };
+  }, [getGradeGroupIds, stamps]);
+
+  // Backwards-compatible wrappers
+  const hasStamp = useCallback((boothId) => isClassComplete(boothId), [isClassComplete]);
+  const addStamp = async (groupId) => addGroupStamp(groupId);
+
+  // Attempt operations (per group)
+  const getAttemptCount = useCallback((groupId) => attempts[groupId] || 0, [attempts]);
+
+  const incrementAttempt = async (groupId) => {
+    const newAttempts = { ...attempts, [groupId]: (attempts[groupId] || 0) + 1 };
     await saveAttempts(newAttempts);
-    return newAttempts[boothId];
+    return newAttempts[groupId];
   };
 
-  const isLockedOut = useCallback((boothId) => {
-    return (attempts[boothId] || 0) >= MAX_ATTEMPTS_PER_BOOTH && !stamps[boothId];
+  const isLockedOut = useCallback((groupId) => {
+    return (attempts[groupId] || 0) >= MAX_ATTEMPTS_PER_GROUP && !stamps[groupId];
   }, [attempts, stamps]);
 
-  const canAttempt = useCallback((boothId) => {
-    return !hasStamp(boothId) && !isLockedOut(boothId);
-  }, [hasStamp, isLockedOut]);
+  const canAttempt = useCallback((groupId) => {
+    return !hasGroupStamp(groupId) && !isLockedOut(groupId);
+  }, [hasGroupStamp, isLockedOut]);
 
-  const getRemainingAttempts = useCallback((boothId) => {
-    if (hasStamp(boothId)) return 0;
-    return MAX_ATTEMPTS_PER_BOOTH - (attempts[boothId] || 0);
-  }, [attempts, hasStamp]);
+  const getRemainingAttempts = useCallback((groupId) => {
+    if (hasGroupStamp(groupId)) return 0;
+    return MAX_ATTEMPTS_PER_GROUP - (attempts[groupId] || 0);
+  }, [attempts, hasGroupStamp]);
 
   // Redemption
   const canRedeem = useCallback(() => {
@@ -105,8 +134,6 @@ export function useAppData() {
 
   const redeemSouvenir = async () => {
     if (!canRedeem()) return false;
-    // Deduct stamps - we keep the stamp count but track redemptions separately
-    // Actually, let's deduct by removing stamps (FIFO)
     const stampIds = Object.keys(stamps);
     const toRemove = stampIds.slice(0, REDEMPTION_COST);
     const newStamps = { ...stamps };
@@ -124,13 +151,13 @@ export function useAppData() {
     setRedemptions(0);
   };
 
-  // Get a random question for a booth
-  const getRandomQuestion = useCallback((boothId) => {
-    const booth = booths.find(b => b.booth_id === boothId);
-    if (!booth || !booth.questions || booth.questions.length === 0) return null;
-    const randomIndex = Math.floor(Math.random() * booth.questions.length);
-    return booth.questions[randomIndex];
-  }, [booths]);
+  // Get a random question for a group
+  const getRandomQuestion = useCallback((groupId) => {
+    const group = findGroup(groupId);
+    if (!group || !group.questions || group.questions.length === 0) return null;
+    const randomIndex = Math.floor(Math.random() * group.questions.length);
+    return group.questions[randomIndex];
+  }, [findGroup]);
 
   return {
     booths,
@@ -139,8 +166,12 @@ export function useAppData() {
     redemptions,
     loading,
     hasStamp,
+    hasGroupStamp,
+    isClassComplete,
+    getClassProgress,
     getStampCount,
     addStamp,
+    addGroupStamp,
     getAttemptCount,
     incrementAttempt,
     isLockedOut,
@@ -149,6 +180,8 @@ export function useAppData() {
     canRedeem,
     redeemSouvenir,
     getRandomQuestion,
+    findGroup,
+    allGroupIds,
     resetAll,
     loadData,
     saveStamps,

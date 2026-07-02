@@ -270,6 +270,13 @@ export default function ProfileScreen({ appData }) {
 
         {adminTab === 'quiz' && (
           <View style={styles.tabPanel}>
+            <Text style={styles.panelTitle}>Quiz Admin</Text>
+            <Text style={styles.panelDesc}>Quiz admin is disabled in group mode. Use the Scan page to test group QR codes.</Text>
+          </View>
+        )}
+
+        {false && adminTab === 'quiz' && (
+          <View style={styles.tabPanel}>
             {!selectedBoothForQuiz ? (
               <>
                 <Text style={styles.panelTitle}>Select a Booth</Text>

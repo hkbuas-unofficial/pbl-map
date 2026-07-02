@@ -21,7 +21,7 @@ const MAP_IMG_W = 2000;
 const MAP_IMG_H = 1414;
 
 export default function MapScreen({ appData, navigation }) {
-  const { booths, hasStamp, isLockedOut, getRemainingAttempts, getStampCount, deviceId } = appData;
+  const { booths, isClassComplete, getClassProgress, getStampCount } = appData;
 
   const [selectedBooth, setSelectedBooth] = useState(null);
   const [detailVisible, setDetailVisible] = useState(false);
@@ -325,7 +325,7 @@ export default function MapScreen({ appData, navigation }) {
   };
 
   const stampCount = getStampCount();
-  const totalBooths = booths.length;
+  const totalGroups = appData.allGroupIds().length;
 
   // Compute CSS transform string for web
   const transformStyle = Platform.OS === 'web'
@@ -405,7 +405,7 @@ export default function MapScreen({ appData, navigation }) {
           </View>
           <View style={styles.statRow}>
             <View style={[styles.statDot, { backgroundColor: '#e74c3c' }]} />
-            <Text style={styles.statText}>{totalBooths - stampCount} Not Visited</Text>
+            <Text style={styles.statText}>{totalGroups - stampCount} Not Visited</Text>
           </View>
         </View>
 
@@ -418,9 +418,8 @@ export default function MapScreen({ appData, navigation }) {
       <BoothDetailModal
         visible={detailVisible}
         booth={selectedBooth}
-        hasStamp={selectedBooth ? hasStamp(selectedBooth.booth_id) : false}
-        remainingAttempts={selectedBooth ? getRemainingAttempts(selectedBooth.booth_id) : 0}
-        isLockedOut={selectedBooth ? isLockedOut(selectedBooth.booth_id) : false}
+        hasStamp={selectedBooth ? isClassComplete(selectedBooth.booth_id) : false}
+        classProgress={selectedBooth ? getClassProgress(selectedBooth.booth_id) : { total: 0, stamped: 0 }}
         onClose={() => setDetailVisible(false)}
         onScanQR={handleGoToScan}
       />
