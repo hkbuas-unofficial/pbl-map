@@ -388,7 +388,7 @@ export default function MapScreen({ appData, navigation }) {
                 >
                   <BoothPin
                     booth={booth}
-                    hasStamp={hasStamp(booth.booth_id)}
+                    hasStamp={isClassComplete(booth.booth_id)}
                     onPress={() => handlePinPress(booth)}
                   />
                 </View>

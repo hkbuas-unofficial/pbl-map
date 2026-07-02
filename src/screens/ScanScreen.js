@@ -19,7 +19,7 @@ const SCAN_SIZE = Math.min(SCREEN_W, SCREEN_H) * 0.65;
 const IS_WEB = Platform.OS === 'web';
 
 export default function ScanScreen({ navigation, appData, initialBoothId }) {
-  const { booths, findGroup, hasGroupStamp, isLockedOut } = appData;
+  const { booths, findGroup, hasGroupStamp, isClassComplete, isLockedOut } = appData;
 
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
@@ -310,7 +310,7 @@ export default function ScanScreen({ navigation, appData, initialBoothId }) {
 
           <View style={styles.bottomInfo}>
             <Text style={styles.bottomHint}>
-              {booths.filter(b => hasStamp(b.booth_id)).length} / {booths.length} stamps collected
+              {booths.filter(b => isClassComplete(b.booth_id)).length} / {booths.length} stamps collected
             </Text>
           </View>
         </View>
@@ -402,7 +402,7 @@ export default function ScanScreen({ navigation, appData, initialBoothId }) {
 
         <View style={styles.bottomInfo}>
           <Text style={styles.bottomHint}>
-            {booths.filter(b => hasStamp(b.booth_id)).length} / {booths.length} stamps collected
+            {booths.filter(b => isClassComplete(b.booth_id)).length} / {booths.length} stamps collected
           </Text>
         </View>
       </View>

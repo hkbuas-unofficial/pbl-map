@@ -25,7 +25,7 @@ export default function WalletScreen({ appData }) {
     booths,
     redemptions,
     getStampCount,
-    hasStamp,
+    isClassComplete,
     canRedeem,
     redeemSouvenir,
   } = appData;
@@ -53,7 +53,7 @@ export default function WalletScreen({ appData }) {
   const stampsUntilNextPrize = REDEMPTION_COST - (stampCount % REDEMPTION_COST);
 
   // Only completed (stamped) booths for history
-  const completedBooths = booths.filter(b => hasStamp(b.booth_id));
+  const completedBooths = booths.filter(b => isClassComplete(b.booth_id));
 
   const handleRedeem = () => {
     if (!canRedeem()) {
