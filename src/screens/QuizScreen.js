@@ -10,6 +10,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { capture } from '../lib/posthog';
+import { formatGroupDisplay } from '../lib/groupDisplay';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
@@ -22,6 +23,7 @@ export default function QuizScreen({ booth, group, groupId, onClose, onFinish, a
   const [questionHistory, setQuestionHistory] = useState([]);
   const [attemptNum, setAttemptNum] = useState(1);
   const [totalAttempts, setTotalAttempts] = useState(0);
+  const [stampAwarded, setStampAwarded] = useState(false);
   const [fadeAnim] = useState(new Animated.Value(0));
   const [slideAnim] = useState(new Animated.Value(50));
   const [shakeAnim] = useState(new Animated.Value(0));
@@ -78,8 +80,11 @@ export default function QuizScreen({ booth, group, groupId, onClose, onFinish, a
     setResult(isCorrect ? 'correct' : 'wrong');
 
     if (isCorrect) {
-      await addGroupStamp(groupId);
-      capture('stamp_earned', { group_id: groupId, class_id: booth.booth_id, booth_name: booth.booth_name });
+      if (!stampAwarded) {
+        await addGroupStamp(groupId);
+        setStampAwarded(true);
+        capture('stamp_earned', { group_id: groupId, class_id: booth.booth_id, booth_name: booth.booth_name });
+      }
     } else {
       const newCount = await incrementAttempt(groupId);
       setTotalAttempts(newCount);
@@ -88,23 +93,26 @@ export default function QuizScreen({ booth, group, groupId, onClose, onFinish, a
     }
   };
 
-  const handleNext = () => {
-    if (result === 'correct') {
-      if (onFinish) {
-        onFinish();
-      } else {
-        onClose();
-      }
-      return;
+  const handleGoHome = () => {
+    if (onFinish) {
+      onFinish();
+    } else {
+      onClose();
     }
+  };
+
+  const handleAnswerMore = () => {
+    setSelectedOption(null);
+    setResult(null);
+    setAttemptNum(prev => prev + 1);
+    pickQuestion();
+  };
+
+  const handleNext = () => {
     const newRemaining = getRemainingAttempts(groupId);
-    if (newRemaining <= 0) {
+    if (!stampAwarded && newRemaining <= 0) {
       capture('quiz_locked', { group_id: groupId, class_id: booth.booth_id, booth_name: booth.booth_name });
-      if (onFinish) {
-        onFinish();
-      } else {
-        onClose();
-      }
+      handleGoHome();
       return;
     }
     // Next question
@@ -150,7 +158,7 @@ export default function QuizScreen({ booth, group, groupId, onClose, onFinish, a
             <Text style={styles.boothName}>{booth.booth_name}</Text>
             <View style={styles.attemptBadge}>
               <Text style={styles.attemptBadgeText}>
-                {booth.booth_id} · Group {group.group_id} · Attempt {attemptNum} of 5
+                {booth.booth_id} · {formatGroupDisplay(groupId)} · Attempt {attemptNum} of 5
               </Text>
             </View>
           </View>
@@ -222,7 +230,7 @@ export default function QuizScreen({ booth, group, groupId, onClose, onFinish, a
                 <Text style={styles.resultIcon}>🎉</Text>
               </View>
               <Text style={styles.resultTitle}>Correct!</Text>
-              <Text style={styles.resultSub}>Stamp earned for {booth.booth_name} Group {group.group_id}</Text>
+              <Text style={styles.resultSub}>Stamp earned for {booth.booth_name} · {formatGroupDisplay(groupId)}</Text>
             </View>
           )}
 
@@ -232,9 +240,13 @@ export default function QuizScreen({ booth, group, groupId, onClose, onFinish, a
                 <Text style={styles.resultIcon}>😅</Text>
               </View>
               <Text style={[styles.resultTitle, styles.resultTitleWrong]}>Not quite!</Text>
-              {getRemainingAttempts(booth.booth_id) > 0 ? (
+              {stampAwarded ? (
                 <Text style={styles.resultSub}>
-                  {getRemainingAttempts(booth.booth_id)} attempt{getRemainingAttempts(booth.booth_id) !== 1 ? 's' : ''} remaining
+                  No penalty — you already earned this stamp.
+                </Text>
+              ) : getRemainingAttempts(groupId) > 0 ? (
+                <Text style={styles.resultSub}>
+                  {getRemainingAttempts(groupId)} attempt{getRemainingAttempts(groupId) !== 1 ? 's' : ''} remaining
                 </Text>
               ) : (
                 <Text style={[styles.resultSub, styles.resultSubLocked]}>
@@ -257,18 +269,33 @@ export default function QuizScreen({ booth, group, groupId, onClose, onFinish, a
               >
                 <Text style={styles.submitBtnText}>Submit Answer</Text>
               </TouchableOpacity>
+            ) : result === 'correct' ? (
+              <View style={styles.correctActions}>
+                <TouchableOpacity
+                  style={[styles.actionBtn, styles.homeBtn]}
+                  onPress={handleGoHome}
+                >
+                  <Text style={styles.homeBtnText}>Return to Home</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.actionBtn, styles.moreBtn]}
+                  onPress={handleAnswerMore}
+                >
+                  <Text style={styles.moreBtnText}>Answer More Questions</Text>
+                </TouchableOpacity>
+              </View>
             ) : (
               <TouchableOpacity
                 style={[
                   styles.nextBtn,
-                  result === 'wrong' && getRemainingAttempts(booth.booth_id) <= 0 && styles.nextBtnLocked,
+                  !stampAwarded && getRemainingAttempts(groupId) <= 0 && styles.nextBtnLocked,
                 ]}
                 onPress={handleNext}
               >
                 <Text style={styles.nextBtnText}>
-                  {result === 'correct'
-                    ? 'Collect Stamp →'
-                    : getRemainingAttempts(booth.booth_id) > 0
+                  {stampAwarded
+                    ? 'Try Another Question'
+                    : getRemainingAttempts(groupId) > 0
                     ? 'Try Another Question'
                     : 'Close'}
                 </Text>
@@ -537,6 +564,38 @@ const styles = StyleSheet.create({
   nextBtnText: {
     color: '#fff',
     fontSize: 17,
+    fontWeight: 'bold',
+  },
+  correctActions: {
+    flexDirection: 'column',
+    gap: 12,
+  },
+  actionBtn: {
+    paddingVertical: 16,
+    borderRadius: 16,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  homeBtn: {
+    backgroundColor: '#fff',
+    borderWidth: 2,
+    borderColor: '#3498db',
+  },
+  homeBtnText: {
+    color: '#3498db',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  moreBtn: {
+    backgroundColor: '#27ae60',
+  },
+  moreBtnText: {
+    color: '#fff',
+    fontSize: 16,
     fontWeight: 'bold',
   },
 });

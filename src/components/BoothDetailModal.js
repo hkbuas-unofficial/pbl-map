@@ -58,13 +58,9 @@ export default function BoothDetailModal({
             </View>
           ) : null}
 
-          {/* Group list preview */}
-          <View style={styles.groupsRow}>
-            {gradeGroups.map(group => (
-              <View key={group.groupId} style={styles.groupPill}>
-                <Text style={styles.groupPillText}>{group.classId.split(' ').pop()}-{group.groupName.replace('Group ', '')}</Text>
-              </View>
-            ))}
+          {/* Group count preview */}
+          <View style={styles.groupCountRow}>
+            <Text style={styles.groupCountText}>{gradeGroups.length} groups</Text>
           </View>
 
           {/* Action button */}
@@ -169,21 +165,17 @@ const styles = StyleSheet.create({
     color: '#bbb',
     flexShrink: 1,
   },
-  groupsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+  groupCountRow: {
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
     marginBottom: 16,
   },
-  groupPill: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  groupPillText: {
+  groupCountText: {
     color: '#fff',
-    fontSize: 12,
+    fontSize: 15,
     fontWeight: '600',
   },
   scanBtn: {
