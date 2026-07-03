@@ -9,9 +9,9 @@ export function extractBoothId(rawData) {
 
   const data = String(rawData).trim();
 
-  // If it's just a short ID (no URL), return it uppercase
+  // If it's just a short ID (no URL), return it as-is (preserve case for group IDs like London-2)
   if (!data.includes('/') && !data.includes('?') && !data.includes('id=')) {
-    return data.toUpperCase();
+    return data;
   }
 
   try {
