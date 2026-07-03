@@ -13,6 +13,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import QuizScreen from './QuizScreen';
 import { capture } from '../lib/posthog';
 import { extractBoothId } from '../lib/qrParser';
+import { GROUP_QUESTIONS } from '../data/groupQuestions';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 const SCAN_SIZE = Math.min(SCREEN_W, SCREEN_H) * 0.65;
@@ -97,12 +98,22 @@ export default function ScanScreen({ navigation, appData, initialBoothId }) {
     if (scanned || showQuiz) return;
     setScanned(true);
 
-    const groupId = extractBoothId(data);
+    let groupId = extractBoothId(data);
     if (!groupId) {
       showError('Invalid QR code', 'invalid');
       return;
     }
-    const found = findGroup(groupId);
+    let found = findGroup(groupId);
+
+    // Fallback: if the scanned id is a class ID (e.g. G2D), open the first group in that class
+    if (!found) {
+      const classGroup = Object.values(GROUP_QUESTIONS).find(g => g.classId === groupId);
+      if (classGroup) {
+        groupId = classGroup.groupId;
+        found = classGroup;
+      }
+    }
+
     if (!found) {
       showError('404 Booth Not Found', 'notfound');
       return;
