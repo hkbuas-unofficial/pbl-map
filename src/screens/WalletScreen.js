@@ -90,39 +90,41 @@ export default function WalletScreen({ appData }) {
       </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        {/* Stamp Card - vertical stack, always fits */}
-        <View style={styles.stampCardContainer}>
-          <View style={styles.stampCard}>
-            {/* Stamp slots in a 2-column grid */}
-            <View style={styles.stampGrid}>
-              {items.map((item, index) => {
-                if (item.type === 'redeem') {
+        {/* Stamp Card - only show when user has stamps */}
+        {stampCount > 0 && (
+          <View style={styles.stampCardContainer}>
+            <View style={styles.stampCard}>
+              {/* Stamp slots in a 2-column grid */}
+              <View style={styles.stampGrid}>
+                {items.map((item, index) => {
+                  if (item.type === 'redeem') {
+                    return (
+                      <TouchableOpacity key={`redeem-${index}`} style={styles.stampSlot} onPress={handleRedeem}>
+                        <Image
+                          source={STAMP_REDEEM_IMG}
+                          style={styles.stampImage}
+                          resizeMode="contain"
+                        />
+                      </TouchableOpacity>
+                    );
+                  }
                   return (
-                    <TouchableOpacity key={`redeem-${index}`} style={styles.stampSlot} onPress={handleRedeem}>
+                    <View key={`stamp-${index}`} style={styles.stampSlot}>
                       <Image
-                        source={STAMP_REDEEM_IMG}
+                        source={item.filled ? STAMP_FILLED_IMG : STAMP_EMPTY_IMG}
                         style={styles.stampImage}
                         resizeMode="contain"
                       />
-                    </TouchableOpacity>
+                    </View>
                   );
-                }
-                return (
-                  <View key={`stamp-${index}`} style={styles.stampSlot}>
-                    <Image
-                      source={item.filled ? STAMP_FILLED_IMG : STAMP_EMPTY_IMG}
-                      style={styles.stampImage}
-                      resizeMode="contain"
-                    />
-                  </View>
-                );
-              })}
+                })}
+              </View>
             </View>
+            <Text style={styles.stampCardLabel}>
+              {stampCount} stamps · {stampsUntilNextPrize} more for next prize
+            </Text>
           </View>
-          <Text style={styles.stampCardLabel}>
-            {stampCount} stamps · {stampsUntilNextPrize} more for next prize
-          </Text>
-        </View>
+        )}
 
         {/* Stats summary */}
         <View style={styles.statsRow}>
