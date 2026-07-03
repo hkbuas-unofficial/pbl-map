@@ -89,6 +89,17 @@ export function useAppData() {
     await AsyncStorage.setItem(STORAGE_KEYS.REDEMPTIONS, count.toString());
   };
 
+  // Group stamp operations
+  const hasGroupStamp = useCallback((groupId) => !!stamps[groupId], [stamps]);
+  const getStampCount = useCallback(() => Object.keys(stamps).length, [stamps]);
+
+  const addGroupStamp = async (groupId) => {
+    const newStamps = { ...stamps, [groupId]: true };
+    const newCompleted = { ...completed, [groupId]: true };
+    await saveStamps(newStamps);
+    await saveCompleted(newCompleted);
+  };
+
   // Grade completion: tick when ANY group in the grade is stamped (for pin display)
   const isClassComplete = useCallback((gradeId) => {
     const groupIds = getGradeGroupIds(gradeId);
