@@ -86,7 +86,10 @@ export default function QuizScreen({ booth, group, groupId, onClose, onFinish, a
 
   const handleSubmit = async () => {
     if (!selectedOption || !currentQuestion) return;
-    const isCorrect = selectedOption === currentQuestion.answer;
+    const correctAnswers = Array.isArray(currentQuestion.answer)
+      ? currentQuestion.answer
+      : [currentQuestion.answer];
+    const isCorrect = correctAnswers.includes(selectedOption);
     setResult(isCorrect ? 'correct' : 'wrong');
 
     if (isCorrect) {
@@ -194,11 +197,15 @@ export default function QuizScreen({ booth, group, groupId, onClose, onFinish, a
               let letterStyle = [styles.optionLetter, { backgroundColor: color }];
               let textStyle = styles.optionText;
 
+              const correctAnswers = Array.isArray(currentQuestion.answer)
+                ? currentQuestion.answer
+                : [currentQuestion.answer];
+
               if (result) {
-                if (key === currentQuestion.answer) {
+                if (correctAnswers.includes(key)) {
                   cardStyle = [...cardStyle, styles.optionCorrect];
                   letterStyle = [...letterStyle, styles.optionLetterCorrect];
-                } else if (key === selectedOption && key !== currentQuestion.answer) {
+                } else if (key === selectedOption && !correctAnswers.includes(key)) {
                   cardStyle = [...cardStyle, styles.optionWrong];
                   letterStyle = [...letterStyle, styles.optionLetterWrong];
                 } else {
@@ -222,10 +229,14 @@ export default function QuizScreen({ booth, group, groupId, onClose, onFinish, a
                     <Text style={styles.optionLetterText}>{optionLabels[key]}</Text>
                   </View>
                   <Text style={textStyle}>{value}</Text>
-                  {result && key === currentQuestion.answer && (
+                  {result && (Array.isArray(currentQuestion.answer)
+                    ? currentQuestion.answer.includes(key)
+                    : key === currentQuestion.answer) && (
                     <Text style={styles.checkMark}>✓</Text>
                   )}
-                  {result && key === selectedOption && key !== currentQuestion.answer && (
+                  {result && key === selectedOption && !(Array.isArray(currentQuestion.answer)
+                    ? currentQuestion.answer.includes(key)
+                    : key === currentQuestion.answer) && (
                     <Text style={styles.xMark}>✕</Text>
                   )}
                 </TouchableOpacity>
