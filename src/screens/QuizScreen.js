@@ -415,11 +415,9 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   optionsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: 'column',
     gap: 12,
     marginBottom: 20,
-    justifyContent: 'space-between',
   },
   optionCard: {
     flexDirection: 'row',
@@ -435,7 +433,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 2,
     elevation: 1,
-    width: '48%',
+    width: '100%',
   },
   optionSelected: {
     backgroundColor: '#e3f2fd',
