@@ -55,8 +55,6 @@ export default function WalletScreen({ appData }) {
 
   const stampsUntilNextPrize = REDEMPTION_COST - (stampCount % REDEMPTION_COST);
 
-  const stampsUntilNextPrize = REDEMPTION_COST - (stampCount % REDEMPTION_COST);
-
   // Build list of completed groups with their details
   const completedGroups = Object.keys(completed || {})
     .map(groupId => {
