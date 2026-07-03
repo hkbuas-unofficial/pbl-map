@@ -26,6 +26,7 @@ export default function ScanScreen({ navigation, appData, initialBoothId }) {
   const [quizBooth, setQuizBooth] = useState(null);
   const [showQuiz, setShowQuiz] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
+  const [errorType, setErrorType] = useState(null); // 'notfound' | 'lockedout' | 'already' | 'invalid' | null
   const [scanLineAnim] = useState(new Animated.Value(0));
 
   // Web QR scanner state
@@ -65,53 +66,15 @@ export default function ScanScreen({ navigation, appData, initialBoothId }) {
     return () => scanLineAnim.setValue(0);
   }, [showQuiz]);
 
-  const processScannedData = useCallback((data) => {
-    if (scanned || showQuiz) return;
-    setScanned(true);
-
-    const groupId = extractBoothId(data);
-    if (!groupId) {
-      setErrorMsg('Invalid QR code');
-      setTimeout(() => {
-        setErrorMsg(null);
-        setScanned(false);
-      }, 2000);
-      return;
-    }
-    const found = findGroup(groupId);
-    if (!found) {
-      setErrorMsg(`No group found: ${groupId}`);
-      setTimeout(() => {
-        setErrorMsg(null);
-        setScanned(false);
-      }, 2000);
-      return;
-    }
-    const booth = booths.find(b => b.grade === found.grade);
-
-    if (hasGroupStamp(groupId)) {
-      setErrorMsg(`Already stamped: ${booth.booth_name} Group ${found.groupName}`);
-      setTimeout(() => {
-        setErrorMsg(null);
-        setScanned(false);
-      }, 2000);
-      return;
-    }
-
-    if (isLockedOut(groupId)) {
-      setErrorMsg(`Locked out: ${booth.booth_name} Group ${found.groupName}`);
-      setTimeout(() => {
-        setErrorMsg(null);
-        setScanned(false);
-      }, 2000);
-      return;
-    }
-
-    // Valid group - show quiz
-    capture('qr_scan', { group_id: groupId, class_id: found.classId, booth_name: booth.booth_name });
-    setQuizBooth({ ...booth, activeGroup: found, groupId });
-    setShowQuiz(true);
-  }, [scanned, showQuiz, booths, hasGroupStamp, isLockedOut]);
+  const showError = useCallback((message, type = 'general') => {
+    setErrorType(type);
+    setErrorMsg(message);
+    setTimeout(() => {
+      setErrorMsg(null);
+      setErrorType(null);
+      setScanned(false);
+    }, 2500);
+  }, []);
 
   const handleBarCodeScanned = useCallback(({ data }) => {
     processScannedData(data);
@@ -294,17 +257,29 @@ export default function ScanScreen({ navigation, appData, initialBoothId }) {
           </View>
 
           {webScanError && (
-            <View style={styles.errorToast}>
-              <Text style={styles.errorToastText}>{webScanError}</Text>
-              <Text style={styles.errorToastSub}>
-                Make sure camera permission is granted.
+            <View style={styles.friendlyPopup}>
+              <Text style={styles.friendlyPopupEmoji}>📷</Text>
+              <Text style={styles.friendlyPopupTitle}>Camera Access Needed</Text>
+              <Text style={styles.friendlyPopupText}>
+                Please allow camera usage for QR code scanning.
               </Text>
             </View>
           )}
 
           {errorMsg && (
-            <View style={styles.errorToast}>
-              <Text style={styles.errorToastText}>{errorMsg}</Text>
+            <View style={[
+              styles.friendlyPopup,
+              errorType === 'notfound' && styles.popupNotFound,
+              errorType === 'lockedout' && styles.popupLockedOut,
+              errorType === 'already' && styles.popupAlready,
+            ]}>
+              <Text style={styles.friendlyPopupEmoji}>
+                {errorType === 'notfound' ? '🔍' : errorType === 'lockedout' ? '😅' : errorType === 'already' ? '✓' : '⚠️'}
+              </Text>
+              <Text style={styles.friendlyPopupTitle}>
+                {errorType === 'notfound' ? 'Booth Not Found' : errorType === 'lockedout' ? 'Out of Tries' : errorType === 'already' ? 'Already Done' : 'Oops'}
+              </Text>
+              <Text style={styles.friendlyPopupText}>{errorMsg}</Text>
             </View>
           )}
 
@@ -395,8 +370,19 @@ export default function ScanScreen({ navigation, appData, initialBoothId }) {
         </View>
 
         {errorMsg && (
-          <View style={styles.errorToast}>
-            <Text style={styles.errorToastText}>{errorMsg}</Text>
+          <View style={[
+            styles.friendlyPopup,
+            errorType === 'notfound' && styles.popupNotFound,
+            errorType === 'lockedout' && styles.popupLockedOut,
+            errorType === 'already' && styles.popupAlready,
+          ]}>
+            <Text style={styles.friendlyPopupEmoji}>
+              {errorType === 'notfound' ? '🔍' : errorType === 'lockedout' ? '😅' : errorType === 'already' ? '✓' : '⚠️'}
+            </Text>
+            <Text style={styles.friendlyPopupTitle}>
+              {errorType === 'notfound' ? 'Booth Not Found' : errorType === 'lockedout' ? 'Out of Tries' : errorType === 'already' ? 'Already Done' : 'Oops'}
+            </Text>
+            <Text style={styles.friendlyPopupText}>{errorMsg}</Text>
           </View>
         )}
 
@@ -497,24 +483,40 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(0,0,0,0.5)',
     textShadowRadius: 4,
   },
-  errorToast: {
-    backgroundColor: 'rgba(231,76,60,0.9)',
+  friendlyPopup: {
+    backgroundColor: 'rgba(30,30,30,0.85)',
     marginHorizontal: 40,
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderRadius: 12,
+    paddingVertical: 20,
+    paddingHorizontal: 24,
+    borderRadius: 20,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
   },
-  errorToastText: {
+  popupNotFound: {
+    borderColor: 'rgba(52,152,219,0.3)',
+  },
+  popupLockedOut: {
+    borderColor: 'rgba(243,156,18,0.3)',
+  },
+  popupAlready: {
+    borderColor: 'rgba(39,174,96,0.3)',
+  },
+  friendlyPopupEmoji: {
+    fontSize: 40,
+    marginBottom: 10,
+  },
+  friendlyPopupTitle: {
     color: '#fff',
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 17,
+    fontWeight: 'bold',
+    marginBottom: 6,
   },
-  errorToastSub: {
+  friendlyPopupText: {
     color: 'rgba(255,255,255,0.7)',
-    fontSize: 12,
-    marginTop: 6,
+    fontSize: 14,
     textAlign: 'center',
+    lineHeight: 20,
   },
   bottomInfo: {
     alignItems: 'center',
