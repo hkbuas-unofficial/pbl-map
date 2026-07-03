@@ -2406,9 +2406,9 @@ export const GROUP_QUESTIONS = {
       }
     ]
   },
-  "G4 Local 1-1": {
-    "groupId": "G4 Local 1-1",
-    "classId": "G4 Local 1",
+  "G4L1-1": {
+    "groupId": "G4L1-1",
+    "classId": "G4L1",
     "grade": "G4",
     "groupName": "Group 1",
     "questions": [
@@ -2441,9 +2441,9 @@ export const GROUP_QUESTIONS = {
       }
     ]
   },
-  "G4 Local 1-2": {
-    "groupId": "G4 Local 1-2",
-    "classId": "G4 Local 1",
+  "G4L1-2": {
+    "groupId": "G4L1-2",
+    "classId": "G4L1",
     "grade": "G4",
     "groupName": "Group 2",
     "questions": [
@@ -2476,9 +2476,9 @@ export const GROUP_QUESTIONS = {
       }
     ]
   },
-  "G4 Local 1-3": {
-    "groupId": "G4 Local 1-3",
-    "classId": "G4 Local 1",
+  "G4L1-3": {
+    "groupId": "G4L1-3",
+    "classId": "G4L1",
     "grade": "G4",
     "groupName": "Group 3",
     "questions": [
@@ -2511,9 +2511,9 @@ export const GROUP_QUESTIONS = {
       }
     ]
   },
-  "G4 Local 1-4": {
-    "groupId": "G4 Local 1-4",
-    "classId": "G4 Local 1",
+  "G4L1-4": {
+    "groupId": "G4L1-4",
+    "classId": "G4L1",
     "grade": "G4",
     "groupName": "Group 4",
     "questions": [
@@ -2546,9 +2546,9 @@ export const GROUP_QUESTIONS = {
       }
     ]
   },
-  "G4 Local 2-1": {
-    "groupId": "G4 Local 2-1",
-    "classId": "G4 Local 2",
+  "G4L2-1": {
+    "groupId": "G4L2-1",
+    "classId": "G4L2",
     "grade": "G4",
     "groupName": "Group 1",
     "questions": [
@@ -2581,9 +2581,9 @@ export const GROUP_QUESTIONS = {
       }
     ]
   },
-  "G4 Local 2-2": {
-    "groupId": "G4 Local 2-2",
-    "classId": "G4 Local 2",
+  "G4L2-2": {
+    "groupId": "G4L2-2",
+    "classId": "G4L2",
     "grade": "G4",
     "groupName": "Group 2",
     "questions": [
@@ -2616,9 +2616,9 @@ export const GROUP_QUESTIONS = {
       }
     ]
   },
-  "G4 Local 2-3": {
-    "groupId": "G4 Local 2-3",
-    "classId": "G4 Local 2",
+  "G4L2-3": {
+    "groupId": "G4L2-3",
+    "classId": "G4L2",
     "grade": "G4",
     "groupName": "Group 3",
     "questions": [
@@ -2651,9 +2651,9 @@ export const GROUP_QUESTIONS = {
       }
     ]
   },
-  "G4 Local 2-4": {
-    "groupId": "G4 Local 2-4",
-    "classId": "G4 Local 2",
+  "G4L2-4": {
+    "groupId": "G4L2-4",
+    "classId": "G4L2",
     "grade": "G4",
     "groupName": "Group 4",
     "questions": [
@@ -2686,9 +2686,9 @@ export const GROUP_QUESTIONS = {
       }
     ]
   },
-  "G4 Local 3-1": {
-    "groupId": "G4 Local 3-1",
-    "classId": "G4 Local 3",
+  "G4L3-1": {
+    "groupId": "G4L3-1",
+    "classId": "G4L3",
     "grade": "G4",
     "groupName": "Group 1",
     "questions": [
@@ -2721,9 +2721,9 @@ export const GROUP_QUESTIONS = {
       }
     ]
   },
-  "G4 Local 3-2": {
-    "groupId": "G4 Local 3-2",
-    "classId": "G4 Local 3",
+  "G4L3-2": {
+    "groupId": "G4L3-2",
+    "classId": "G4L3",
     "grade": "G4",
     "groupName": "Group 2",
     "questions": [
@@ -2756,9 +2756,9 @@ export const GROUP_QUESTIONS = {
       }
     ]
   },
-  "G4 Local 3-3": {
-    "groupId": "G4 Local 3-3",
-    "classId": "G4 Local 3",
+  "G4L3-3": {
+    "groupId": "G4L3-3",
+    "classId": "G4L3",
     "grade": "G4",
     "groupName": "Group 3",
     "questions": [
@@ -2791,9 +2791,9 @@ export const GROUP_QUESTIONS = {
       }
     ]
   },
-  "G4 Local 3-4": {
-    "groupId": "G4 Local 3-4",
-    "classId": "G4 Local 3",
+  "G4L3-4": {
+    "groupId": "G4L3-4",
+    "classId": "G4L3",
     "grade": "G4",
     "groupName": "Group 4",
     "questions": [
@@ -2826,9 +2826,9 @@ export const GROUP_QUESTIONS = {
       }
     ]
   },
-  "G4 Local 4-1": {
-    "groupId": "G4 Local 4-1",
-    "classId": "G4 Local 4",
+  "G4L4-1": {
+    "groupId": "G4L4-1",
+    "classId": "G4L4",
     "grade": "G4",
     "groupName": "Group 1",
     "questions": [
@@ -2861,9 +2861,9 @@ export const GROUP_QUESTIONS = {
       }
     ]
   },
-  "G4 Local 4-2": {
-    "groupId": "G4 Local 4-2",
-    "classId": "G4 Local 4",
+  "G4L4-2": {
+    "groupId": "G4L4-2",
+    "classId": "G4L4",
     "grade": "G4",
     "groupName": "Group 2",
     "questions": [
@@ -2896,9 +2896,9 @@ export const GROUP_QUESTIONS = {
       }
     ]
   },
-  "G4 Local 4-3": {
-    "groupId": "G4 Local 4-3",
-    "classId": "G4 Local 4",
+  "G4L4-3": {
+    "groupId": "G4L4-3",
+    "classId": "G4L4",
     "grade": "G4",
     "groupName": "Group 3",
     "questions": [
@@ -2931,9 +2931,9 @@ export const GROUP_QUESTIONS = {
       }
     ]
   },
-  "G4 Local 4-4": {
-    "groupId": "G4 Local 4-4",
-    "classId": "G4 Local 4",
+  "G4L4-4": {
+    "groupId": "G4L4-4",
+    "classId": "G4L4",
     "grade": "G4",
     "groupName": "Group 4",
     "questions": [
