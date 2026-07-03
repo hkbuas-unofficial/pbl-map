@@ -12,6 +12,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { REDEMPTION_COST } from '../hooks/useAppData';
+import { formatGroupDisplay } from '../lib/groupDisplay';
 import { capture } from '../lib/posthog';
 
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -23,6 +24,8 @@ const STAMP_REDEEM_IMG = require('../../assets/stamp_redeem.png');
 export default function WalletScreen({ appData }) {
   const {
     booths,
+    completed,
+    findGroup,
     redemptions,
     getStampCount,
     isClassComplete,
@@ -52,8 +55,22 @@ export default function WalletScreen({ appData }) {
 
   const stampsUntilNextPrize = REDEMPTION_COST - (stampCount % REDEMPTION_COST);
 
-  // Only completed (stamped) booths for history
-  const completedBooths = booths.filter(b => isClassComplete(b.booth_id));
+  const stampsUntilNextPrize = REDEMPTION_COST - (stampCount % REDEMPTION_COST);
+
+  // Build list of completed groups with their details
+  const completedGroups = Object.keys(completed || {})
+    .map(groupId => {
+      const group = findGroup(groupId);
+      if (!group) return null;
+      const booth = booths.find(b => b.grade === group.grade);
+      return {
+        groupId,
+        displayName: formatGroupDisplay(groupId),
+        boothName: booth?.booth_name || group.grade,
+        grade: group.grade,
+      };
+    })
+    .filter(Boolean);
 
   const handleRedeem = () => {
     if (!canRedeem()) {
@@ -142,22 +159,19 @@ export default function WalletScreen({ appData }) {
           </View>
         </View>
 
-        {/* Completed Booths History */}
-        {completedBooths.length > 0 && (
+        {/* Completed Groups History */}
+        {completedGroups.length > 0 && (
           <>
-            <Text style={styles.sectionTitle}>Completed Booths</Text>
+            <Text style={styles.sectionTitle}>Completed Groups</Text>
             <View style={styles.historyList}>
-              {completedBooths.map((booth) => (
-                <View key={booth.booth_id} style={styles.historyItem}>
+              {completedGroups.map((item) => (
+                <View key={item.groupId} style={styles.historyItem}>
                   <View style={styles.historyIcon}>
-                    <Text style={{ fontSize: 18 }}>🏆</Text>
+                    <Text style={{ fontSize: 18 }}>✓</Text>
                   </View>
                   <View style={styles.historyInfo}>
-                    <Text style={styles.historyId}>Booth {booth.booth_id}</Text>
-                    <Text style={styles.historyName}>{booth.booth_name}</Text>
-                  </View>
-                  <View style={styles.historyStatus}>
-                    <Text style={styles.historyStatusText}>✓</Text>
+                    <Text style={styles.historyId}>{item.displayName}</Text>
+                    <Text style={styles.historyName}>{item.boothName}</Text>
                   </View>
                 </View>
               ))}
