@@ -76,6 +76,38 @@ export default function ScanScreen({ navigation, appData, initialBoothId }) {
     }, 2500);
   }, []);
 
+  const processScannedData = useCallback((data) => {
+    if (scanned || showQuiz) return;
+    setScanned(true);
+
+    const groupId = extractBoothId(data);
+    if (!groupId) {
+      showError('Invalid QR code', 'invalid');
+      return;
+    }
+    const found = findGroup(groupId);
+    if (!found) {
+      showError('404 Booth Not Found', 'notfound');
+      return;
+    }
+    const booth = booths.find(b => b.grade === found.grade);
+
+    if (hasGroupStamp(groupId)) {
+      showError(`Already stamped: ${booth.booth_name} · ${found.groupName}`, 'already');
+      return;
+    }
+
+    if (isLockedOut(groupId)) {
+      showError(`Sorry! You have used up all your tries on this booth`, 'lockedout');
+      return;
+    }
+
+    // Valid group - show quiz
+    capture('qr_scan', { group_id: groupId, class_id: found.classId, booth_name: booth.booth_name });
+    setQuizBooth({ ...booth, activeGroup: found, groupId });
+    setShowQuiz(true);
+  }, [scanned, showQuiz, booths, findGroup, hasGroupStamp, isLockedOut, showError]);
+
   const handleBarCodeScanned = useCallback(({ data }) => {
     processScannedData(data);
   }, [processScannedData]);
