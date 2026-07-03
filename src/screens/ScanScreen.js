@@ -45,6 +45,23 @@ export default function ScanScreen({ navigation, appData, initialBoothId }) {
     }
   }, [initialBoothId]);
 
+  // Stop camera when component unmounts or user leaves scan tab
+  useEffect(() => {
+    return () => {
+      // Web: stop all camera tracks
+      if (IS_WEB && streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
+      }
+      if (IS_WEB && animFrameRef.current) {
+        cancelAnimationFrame(animFrameRef.current);
+        animFrameRef.current = null;
+      }
+      const container = IS_WEB ? document.getElementById('web-scanner-container') : null;
+      if (container) container.innerHTML = '';
+    };
+  }, []);
+
   // Animate scan line
   useEffect(() => {
     if (!showQuiz) {
