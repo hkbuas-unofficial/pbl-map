@@ -8,16 +8,18 @@ const STORAGE_KEYS = {
   ATTEMPTS: '@pbl_attempts',
   REDEMPTIONS: '@pbl_redemptions',
   DEVICE_ID: '@pbl_device_id',
+  COMPLETED: '@pbl_completed', // tracks groups completed (not redeemed)
 };
 
 // Stamp requirements
 export const REDEMPTION_THRESHOLD = 3; // stamps needed to redeem
 export const REDEMPTION_COST = 3; // stamps deducted per redemption
-export const MAX_ATTEMPTS_PER_GROUP = 5;
+export const MAX_ATTEMPTS_PER_GROUP = 3;
 
 export function useAppData() {
-  const [stamps, setStamps] = useState({}); // { group_id: true }
+  const [stamps, setStamps] = useState({}); // { group_id: true } — current redeemable stamps
   const [attempts, setAttempts] = useState({}); // { group_id: count }
+  const [completed, setCompleted] = useState({}); // { group_id: true } — permanently completed (for progress)
   const [redemptions, setRedemptions] = useState(0);
   const [loading, setLoading] = useState(true);
   const [booths] = useState(DEMO_BOOTHS); // grade pins
@@ -42,14 +44,16 @@ export function useAppData() {
 
   const loadData = async () => {
     try {
-      const [stampsJson, attemptsJson, redemptionsJson, deviceIdStored] = await Promise.all([
+      const [stampsJson, attemptsJson, redemptionsJson, completedJson, deviceIdStored] = await Promise.all([
         AsyncStorage.getItem(STORAGE_KEYS.STAMPS),
         AsyncStorage.getItem(STORAGE_KEYS.ATTEMPTS),
         AsyncStorage.getItem(STORAGE_KEYS.REDEMPTIONS),
+        AsyncStorage.getItem(STORAGE_KEYS.COMPLETED),
         AsyncStorage.getItem(STORAGE_KEYS.DEVICE_ID),
       ]);
       setStamps(stampsJson ? JSON.parse(stampsJson) : {});
       setAttempts(attemptsJson ? JSON.parse(attemptsJson) : {});
+      setCompleted(completedJson ? JSON.parse(completedJson) : {});
       setRedemptions(redemptionsJson ? parseInt(redemptionsJson, 10) : 0);
 
       let id = deviceIdStored;
@@ -75,31 +79,27 @@ export function useAppData() {
     await AsyncStorage.setItem(STORAGE_KEYS.ATTEMPTS, JSON.stringify(newAttempts));
   };
 
+  const saveCompleted = async (newCompleted) => {
+    setCompleted(newCompleted);
+    await AsyncStorage.setItem(STORAGE_KEYS.COMPLETED, JSON.stringify(newCompleted));
+  };
+
   const saveRedemptions = async (count) => {
     setRedemptions(count);
     await AsyncStorage.setItem(STORAGE_KEYS.REDEMPTIONS, count.toString());
   };
 
-  // Group stamp operations
-  const hasGroupStamp = useCallback((groupId) => !!stamps[groupId], [stamps]);
-  const getStampCount = useCallback(() => Object.keys(stamps).length, [stamps]);
-
-  const addGroupStamp = async (groupId) => {
-    const newStamps = { ...stamps, [groupId]: true };
-    await saveStamps(newStamps);
-  };
-
-  // Grade completion: tick when ANY group in the grade is stamped
+  // Grade completion: tick when ANY group in the grade is stamped (for pin display)
   const isClassComplete = useCallback((gradeId) => {
     const groupIds = getGradeGroupIds(gradeId);
-    return groupIds.some(id => stamps[id]);
-  }, [getGradeGroupIds, stamps]);
+    return groupIds.some(id => completed[id]); // use completed, not stamps
+  }, [getGradeGroupIds, completed]);
 
   const getClassProgress = useCallback((gradeId) => {
     const groupIds = getGradeGroupIds(gradeId);
-    const stamped = groupIds.filter(id => stamps[id]).length;
+    const stamped = groupIds.filter(id => completed[id]).length; // use completed, not stamps
     return { total: groupIds.length, stamped };
-  }, [getGradeGroupIds, stamps]);
+  }, [getGradeGroupIds, completed]);
 
   // Backwards-compatible wrappers
   const hasStamp = useCallback((boothId) => isClassComplete(boothId), [isClassComplete]);
@@ -148,6 +148,7 @@ export function useAppData() {
     await AsyncStorage.multiRemove(Object.values(STORAGE_KEYS));
     setStamps({});
     setAttempts({});
+    setCompleted({});
     setRedemptions(0);
   };
 
@@ -163,6 +164,7 @@ export function useAppData() {
     booths,
     stamps,
     attempts,
+    completed,
     redemptions,
     loading,
     hasStamp,
@@ -186,6 +188,7 @@ export function useAppData() {
     loadData,
     saveStamps,
     saveAttempts,
+    saveCompleted,
     deviceId,
   };
 }

@@ -343,6 +343,9 @@ export default function MapScreen({ appData, navigation }) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
+        <View style={styles.headerTopRow}>
+          <Text style={styles.credit}>created by 6D07 Chen Lianyu Lucas</Text>
+        </View>
         <Text style={styles.title}>PBL e-map</Text>
         <Text style={styles.subtitle}>Scroll to zoom • Drag to pan • Tap a booth</Text>
       </View>
@@ -445,6 +448,14 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: 'bold',
     color: '#333',
+  },
+  headerTopRow: {
+    marginBottom: 4,
+  },
+  credit: {
+    fontSize: 11,
+    color: '#888',
+    fontWeight: '500',
   },
   subtitle: {
     fontSize: 12,

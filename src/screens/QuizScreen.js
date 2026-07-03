@@ -37,8 +37,17 @@ export default function QuizScreen({ booth, group, groupId, onClose, onFinish, a
       .map((_, i) => i)
       .filter(i => !questionHistory.includes(i));
     
-    const pool = availableIndices.length > 0 ? availableIndices : group.questions.map((_, i) => i);
-    const randomIdx = pool[Math.floor(Math.random() * pool.length)];
+    // If all questions used, reset history to allow fresh pool
+    if (availableIndices.length === 0) {
+      setQuestionHistory([]);
+      const freshPool = group.questions.map((_, i) => i);
+      const randomIdx = freshPool[Math.floor(Math.random() * freshPool.length)];
+      setCurrentQuestion({ ...group.questions[randomIdx], _index: randomIdx });
+      setQuestionHistory([randomIdx]);
+      return;
+    }
+    
+    const randomIdx = availableIndices[Math.floor(Math.random() * availableIndices.length)];
     
     setCurrentQuestion({ ...group.questions[randomIdx], _index: randomIdx });
     setQuestionHistory(prev => [...prev, randomIdx]);
