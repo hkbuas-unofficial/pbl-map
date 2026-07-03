@@ -7,6 +7,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { GROUP_QUESTIONS } from '../data/groupQuestions';
+import { MAX_ATTEMPTS_PER_GROUP } from '../hooks/useAppData';
 
 export default function BoothDetailModal({
   visible,
@@ -35,10 +36,10 @@ export default function BoothDetailModal({
           {/* Header row with close */}
           <View style={styles.cardHeader}>
             <View style={[styles.statusBadge, 
-              hasStamp ? styles.badgeGreen : styles.badgeOrange
+              stamped > 0 ? styles.badgeGreen : styles.badgeOrange
             ]}>
               <Text style={styles.statusBadgeText}>
-                {hasStamp ? '✓ COMPLETE' : `${stamped}/${total} GROUPS`}
+                {stamped > 0 ? '✓ STARTED' : `${stamped}/${total} GROUPS`}
               </Text>
             </View>
             <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
@@ -58,23 +59,28 @@ export default function BoothDetailModal({
             </View>
           ) : null}
 
-          {/* Group count preview */}
-          <View style={styles.groupCountRow}>
-            <Text style={styles.groupCountText}>{gradeGroups.length} groups</Text>
+          {/* Progress bar */}
+          <View style={styles.progressSection}>
+            <View style={styles.progressHeader}>
+              <Text style={styles.progressTitle}>Progress</Text>
+              <Text style={styles.progressFraction}>{stamped}/{total} groups stamped</Text>
+            </View>
+            <View style={styles.progressBarBg}>
+              <View style={[styles.progressBarFill, { width: `${total > 0 ? (stamped / total) * 100 : 0}%` }]} />
+            </View>
           </View>
 
-          {/* Action button */}
-          {!hasStamp && (
-            <TouchableOpacity style={styles.scanBtn} onPress={onScanQR}>
-              <Text style={styles.scanBtnText}>📷 Go Scan QR</Text>
-            </TouchableOpacity>
-          )}
+          {/* Group count preview */}
+          <View style={styles.groupCountRow}>
+            <Text style={styles.groupCountText}>{gradeGroups.length} groups total · {MAX_ATTEMPTS_PER_GROUP} attempts each</Text>
+          </View>
 
-          {hasStamp && (
-            <View style={styles.successRow}>
-              <Text style={styles.successText}>🏆 All groups complete!</Text>
-            </View>
-          )}
+          {/* Action button — always show "Get more questions" */}
+          <TouchableOpacity style={styles.scanBtn} onPress={onScanQR}>
+            <Text style={styles.scanBtnText}>
+              {stamped > 0 ? '📷 Get More Questions' : '📷 Go Scan QR'}
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
     </Modal>
@@ -189,15 +195,33 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: 'bold',
   },
-  successRow: {
-    backgroundColor: 'rgba(39,174,96,0.15)',
-    paddingVertical: 12,
-    borderRadius: 12,
-    alignItems: 'center',
+  progressSection: {
+    marginBottom: 16,
   },
-  successText: {
-    color: '#27ae60',
-    fontSize: 15,
+  progressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  progressTitle: {
+    color: '#fff',
+    fontSize: 14,
     fontWeight: '600',
+  },
+  progressFraction: {
+    color: '#bbb',
+    fontSize: 13,
+  },
+  progressBarBg: {
+    height: 8,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: '#27ae60',
+    borderRadius: 4,
   },
 });

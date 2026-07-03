@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { capture } from '../lib/posthog';
 import { formatGroupDisplay } from '../lib/groupDisplay';
+import { MAX_ATTEMPTS_PER_GROUP } from '../hooks/useAppData';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
@@ -158,7 +159,7 @@ export default function QuizScreen({ booth, group, groupId, onClose, onFinish, a
             <Text style={styles.boothName}>{booth.booth_name}</Text>
             <View style={styles.attemptBadge}>
               <Text style={styles.attemptBadgeText}>
-                {booth.booth_id} · {formatGroupDisplay(groupId)} · Attempt {attemptNum} of 5
+                {booth.booth_id} · {formatGroupDisplay(groupId)} · Attempt {attemptNum} of {MAX_ATTEMPTS_PER_GROUP}
               </Text>
             </View>
           </View>
