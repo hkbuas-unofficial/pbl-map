@@ -433,7 +433,11 @@ export const GROUP_QUESTIONS = {
           "b": "他們幫忙檢查「汽車的心臟」引擎和「大腳丫」輪胎 ，讓爸爸媽媽開車、同學坐校巴時，都不會壞在路中間。",
           "c": "讓城市動起來： 因為有他們在背後幫忙，巴士、貨車才能每天載我們去上學，載好吃的食物到超級市場！"
         },
-        "answer": "a"
+        "answer": [
+          "a",
+          "b",
+          "c"
+        ]
       },
       {
         "question": "為什麼「看不到」他們工作，卻還這麼重要？",
@@ -442,7 +446,11 @@ export const GROUP_QUESTIONS = {
           "b": "提早做好準備： 雖然我們去學校時，看不到維修工叔叔，但他們早就提早把螺絲轉緊、把輪胎打飽氣了 。",
           "c": "看不見的保護罩： 如果車子在路上才壞掉就太危險了！所以他們在我們看不到的地方默默修車，就像神奇的隱形保護罩，保護大家平平安安。"
         },
-        "answer": "a"
+        "answer": [
+          "a",
+          "b",
+          "c"
+        ]
       },
       {
         "question": "我們該怎麼感謝這些默默付出的人？",
@@ -451,7 +459,11 @@ export const GROUP_QUESTIONS = {
           "b": "亮晶晶的眼睛： 用眼睛去發現他們把手弄得髒兮兮、流好多汗的辛苦 ，並在心裡佩服他們。",
           "c": "乖乖遵守規則： 坐車時乖乖坐好、過馬路看紅綠燈 ，好好愛惜車子，這就是對維修工最好的感謝喔！"
         },
-        "answer": "c"
+        "answer": [
+          "a",
+          "b",
+          "c"
+        ]
       }
     ]
   },
@@ -468,7 +480,11 @@ export const GROUP_QUESTIONS = {
           "b": "保護大家的安全： 當發生火警或有人受傷時，消防員叔叔會立刻穿上厚厚的消防衣，坐上紅色消防車，衝去把火滅掉、把受傷的人救出來。",
           "c": "讓大家安心生活： 因為有消防員隨時準備出發，我們在學校上學、在家裡睡覺時，都不用害怕，每天都能平平安安！"
         },
-        "answer": "a"
+        "answer": [
+          "a",
+          "b",
+          "c"
+        ]
       },
       {
         "question": "為什麼「看不到」他們工作，卻還這麼重要？",
@@ -477,7 +493,11 @@ export const GROUP_QUESTIONS = {
           "b": "在背後做檢查:雖然我們去上學時，看不到消防員叔叔在救火，但他們其實正在檢查學校的滅火筒、街上的消防喉。",
           "c": "隨時做好準備:他們每天都在消防局裡辛苦地訓練、保養消防車，確保警報一響，就能在幾分鐘內衝出去。這種「看不見的準備」，才是保護大家最強大的超能力！"
         },
-        "answer": "a"
+        "answer": [
+          "a",
+          "b",
+          "c"
+        ]
       },
       {
         "question": "我們該怎麼感謝這些默默付出的人？",
@@ -486,7 +506,11 @@ export const GROUP_QUESTIONS = {
           "b": "乖乖學知識： 認真參加學校的消防演習，聽到警報聲不慌張，用亮晶晶的眼睛記住逃生方法，不讓自己受傷。",
           "c": "不玩火、不搗蛋： 在家絕對不玩火柴和打火機，不亂打救護車和消防局的電話。我們不讓消防員叔叔擔心，就是對他們最好的感謝和愛護喔！"
         },
-        "answer": "b"
+        "answer": [
+          "a",
+          "b",
+          "c"
+        ]
       }
     ]
   },
@@ -1351,6 +1375,15 @@ export const GROUP_QUESTIONS = {
           "a": "Animals that eat other animals",
           "b": "Animals that only eat plants",
           "c": "Animals that clean up dead plants and animals"
+        },
+        "answer": "b"
+      },
+      {
+        "question": "How can we protect the rainforest?",
+        "options": {
+          "a": "Cut down trees to make towns",
+          "b": "Stop illegal wood cutting and protect rainforest areas as national parks",
+          "c": "Start fires to clear land"
         },
         "answer": "b"
       }
@@ -5413,6 +5446,111 @@ export const GROUP_QUESTIONS = {
           "c": "蕾絲布"
         },
         "answer": "b"
+      }
+    ]
+  },
+  "G2D-2": {
+    "groupId": "G2D-2",
+    "classId": "G2D",
+    "grade": "G2",
+    "groupName": "Group 2",
+    "questions": [
+      {
+        "question": "Which layer of the rainforest is the highest, sunniest layer where butterflies and bats fly?",
+        "options": {
+          "a": "The Forest Floor",
+          "b": "The Emergent Layer",
+          "c": "The Understory Layer"
+        },
+        "answer": "b"
+      },
+      {
+        "question": "How many years does it take for the giant Corpse Flower to grow from a tiny seed?",
+        "options": {
+          "a": "1 year",
+          "b": "5 years",
+          "c": "7 to 10 years"
+        },
+        "answer": "c"
+      },
+      {
+        "question": "Which amazing creature from our guessing game can give off 860 volts of electricity?",
+        "options": {
+          "a": "An Electric Eel",
+          "b": "A Pink Dolphin",
+          "c": "A Centipede"
+        },
+        "answer": "a"
+      }
+    ]
+  },
+  "G2D-4": {
+    "groupId": "G2D-4",
+    "classId": "G2D",
+    "grade": "G2",
+    "groupName": "Group 4",
+    "questions": [
+      {
+        "question": "How many seasons are there in the Arctic according to our project board?",
+        "options": {
+          "a": "Four seasons",
+          "b": "Two seasons (Summer and Winter)",
+          "c": "Five seasons"
+        },
+        "answer": "b"
+      },
+      {
+        "question": "In our food chain drawings, what animal does the Polar Bear love to eat?",
+        "options": {
+          "a": "A ringed seal",
+          "b": "An Arctic hare",
+          "c": "Sea plankton"
+        },
+        "answer": "a"
+      },
+      {
+        "question": "What is one green solution we can do to help fix the threats in the Arctic?",
+        "options": {
+          "a": "Bring more large cruise ships",
+          "b": "Leave more plastic trash behind",
+          "c": "Stop plastic waste and use green energy"
+        },
+        "answer": "c"
+      }
+    ]
+  },
+  "G2D-6": {
+    "groupId": "G2D-6",
+    "classId": "G2D",
+    "grade": "G2",
+    "groupName": "Group 6",
+    "questions": [
+      {
+        "question": "In our fun facts section, for how many hours a day does the sun shine during the bright Arctic Summer?",
+        "options": {
+          "a": "5 hours",
+          "b": "12 hours",
+          "c": "24 hours"
+        },
+        "answer": "c"
+      },
+      {
+        "question": "According to our ARCTIC poem, for how many days can a polar bear swim at a single time?",
+        "options": {
+          "a": "1 day",
+          "b": "9 days",
+          "c": "50 days"
+        },
+        "answer": "b"
+      },
+      {
+        "question": "The Narwhal is called the 'unicorn of the sea' because of its long tusk. What is that tusk actually made of?",
+        "options": {
+          "a": "A special tooth filled with nerve endings",
+          "b": "A sharp piece of white ocean ice",
+          "c": "Hardened fluffy cotton wool"
+        },
+        "answer": "a"
       }
     ]
   }

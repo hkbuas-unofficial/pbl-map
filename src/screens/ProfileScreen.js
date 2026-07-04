@@ -10,7 +10,7 @@ import {
   Alert,
   Platform,
 } from 'react-native';
-import { REDEMPTION_THRESHOLD, REDEMPTION_COST, MAX_ATTEMPTS_PER_BOOTH } from '../hooks/useAppData';
+import { REDEMPTION_THRESHOLD, REDEMPTION_COST, MAX_ATTEMPTS_PER_GROUP } from '../hooks/useAppData';
 
 const ADMIN_PASSWORD = 'pbl5**';
 const POSTHOG_DASHBOARD_URL = 'https://us.posthog.com/embedded/hSFzBktMYyc7SGTuEgPL47AcZGeR4A';
@@ -56,7 +56,7 @@ function DashboardIframe() {
 }
 
 export default function ProfileScreen({ appData }) {
-  const { booths, stamps, attempts, redemptions, getStampCount, addStamp, resetAll, saveAttempts } = appData;
+  const { booths, stamps, attempts, redemptions, getStampCount, isClassComplete, getClassProgress, addStamp, resetAll, saveAttempts } = appData;
   const stampCount = getStampCount();
 
   const [adminModalVisible, setAdminModalVisible] = useState(false);
@@ -283,7 +283,7 @@ export default function ProfileScreen({ appData }) {
                 <Text style={styles.panelDesc}>Choose a booth to answer its quiz questions.</Text>
                 {booths.map(booth => {
                   const stamped = !!stamps[booth.booth_id];
-                  const locked = (attempts[booth.booth_id] || 0) >= MAX_ATTEMPTS_PER_BOOTH && !stamped;
+                  const locked = (attempts[booth.booth_id] || 0) >= MAX_ATTEMPTS_PER_GROUP && !stamped;
                   return (
                     <TouchableOpacity
                       key={booth.booth_id}
@@ -299,7 +299,7 @@ export default function ProfileScreen({ appData }) {
                         {locked && <Text style={styles.badgeRed}>Locked</Text>}
                         {!stamped && !locked && (
                           <Text style={styles.attemptsText}>
-                            {MAX_ATTEMPTS_PER_BOOTH - (attempts[booth.booth_id] || 0)} left
+                            {MAX_ATTEMPTS_PER_GROUP - (attempts[booth.booth_id] || 0)} left
                           </Text>
                         )}
                       </View>
@@ -425,7 +425,7 @@ export default function ProfileScreen({ appData }) {
             </View>
             <View style={styles.miniStatDivider} />
             <View style={styles.miniStat}>
-              <Text style={styles.miniStatNum}>{Math.round((stampCount / Math.max(booths.length, 1)) * 100)}%</Text>
+              <Text style={styles.miniStatNum}>{booths.filter(b => isClassComplete(b.booth_id)).length}/{booths.length}</Text>
               <Text style={styles.miniStatLabel}>Done</Text>
             </View>
           </View>
@@ -438,7 +438,7 @@ export default function ProfileScreen({ appData }) {
           {[
             'Visit booths and scan their QR codes to earn stamps.',
             'Answer a quiz question correctly to earn 1 stamp per booth.',
-            `You have ${MAX_ATTEMPTS_PER_BOOTH} attempts per booth. Fail all and you're locked out.`,
+            `You have ${MAX_ATTEMPTS_PER_GROUP} attempts per booth. Fail all and you're locked out.`,
             `Collect ${REDEMPTION_THRESHOLD}+ stamps to redeem souvenirs.`,
             `Each redemption costs ${REDEMPTION_COST} stamps. Leftover stamps carry over!`,
           ].map((rule, i) => (
@@ -454,17 +454,17 @@ export default function ProfileScreen({ appData }) {
         {/* Booth Status Detail */}
         <Text style={styles.sectionTitle}>Booth Status</Text>
         {booths.map((booth) => {
-          const stamped = !!stamps[booth.booth_id];
-          const attemptCount = attempts[booth.booth_id] || 0;
-          const locked = attemptCount >= MAX_ATTEMPTS_PER_BOOTH && !stamped;
-          
+          const progress = getClassProgress(booth.booth_id);
+          const completed = isClassComplete(booth.booth_id);
+          const partial = progress.stamped > 0 && !completed;
+
           return (
             <View key={booth.booth_id} style={styles.boothRow}>
               <View style={styles.boothRowLeft}>
                 <View style={[
                   styles.boothRowDot,
-                  stamped && { backgroundColor: '#27ae60' },
-                  locked && { backgroundColor: '#e74c3c' },
+                  completed && { backgroundColor: '#27ae60' },
+                  partial && { backgroundColor: '#f39c12' },
                 ]} />
                 <View>
                   <Text style={styles.boothRowId}>Booth {booth.booth_id}</Text>
@@ -472,17 +472,13 @@ export default function ProfileScreen({ appData }) {
                 </View>
               </View>
               <View style={styles.boothRowRight}>
-                {stamped ? (
+                {completed ? (
                   <View style={styles.statusBadgeGreen}>
-                    <Text style={styles.statusBadgeTextGreen}>✓ Stamped</Text>
-                  </View>
-                ) : locked ? (
-                  <View style={styles.statusBadgeRed}>
-                    <Text style={styles.statusBadgeTextRed}>🔒 Locked</Text>
+                    <Text style={styles.statusBadgeTextGreen}>✓</Text>
                   </View>
                 ) : (
                   <Text style={styles.boothRowAttempts}>
-                    {attemptCount}/{MAX_ATTEMPTS_PER_BOOTH} tries
+                    {progress.stamped}/{progress.total}
                   </Text>
                 )}
               </View>

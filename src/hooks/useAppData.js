@@ -12,9 +12,9 @@ const STORAGE_KEYS = {
 };
 
 // Stamp requirements
-export const REDEMPTION_THRESHOLD = 3; // stamps needed to redeem
-export const REDEMPTION_COST = 3; // stamps deducted per redemption
-export const MAX_ATTEMPTS_PER_GROUP = 3;
+export const REDEMPTION_THRESHOLD = 5; // stamps needed to redeem
+export const REDEMPTION_COST = 5; // stamps deducted per redemption
+export const MAX_ATTEMPTS_PER_GROUP = 5;
 
 export function useAppData() {
   const [stamps, setStamps] = useState({}); // { group_id: true } — current redeemable stamps
