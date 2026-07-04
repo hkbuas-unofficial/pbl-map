@@ -5,6 +5,7 @@ import { Text, View, StyleSheet, Platform, Animated, Easing } from 'react-native
 import { useAppData } from './src/hooks/useAppData';
 import { initPostHog } from './src/lib/posthog';
 import { extractBoothId } from './src/lib/qrParser';
+import { EVENT_ENDED } from './src/lib/eventToggle';
 
 import MapScreen from './src/screens/MapScreen';
 import ScanScreen from './src/screens/ScanScreen';
@@ -99,6 +100,18 @@ export default function App() {
     return (
       <View style={styles.loading}>
         <Text style={styles.loadingText}>Loading...</Text>
+      </View>
+    );
+  }
+
+  // Event ended screen - blocks all app access
+  if (EVENT_ENDED) {
+    return (
+      <View style={styles.endedContainer}>
+        <Text style={styles.endedEmoji}>🏁</Text>
+        <Text style={styles.endedTitle}>Event Has Ended</Text>
+        <Text style={styles.endedSubtitle}>Thank you for participating!</Text>
+        <Text style={styles.endedMessage}>See you next year.</Text>
       </View>
     );
   }
@@ -207,5 +220,34 @@ const styles = StyleSheet.create({
     backgroundColor: '#e74c3c',
     borderWidth: 1.5,
     borderColor: '#fff',
+  },
+  endedContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#1a1a2e',
+    paddingHorizontal: 32,
+  },
+  endedEmoji: {
+    fontSize: 80,
+    marginBottom: 24,
+  },
+  endedTitle: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  endedSubtitle: {
+    fontSize: 18,
+    color: 'rgba(255,255,255,0.7)',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  endedMessage: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.5)',
+    textAlign: 'center',
   },
 });
